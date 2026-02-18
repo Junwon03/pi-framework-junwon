@@ -1,0 +1,4 @@
+name,domain,pi_crisis,pi_control,separation,stress_max,n_crisis,n_control
+2000 Dot-com Crash,Traditional Finance,0.228969,0.191261,1.2,1.4885,204,154
+2019 Repo Near-miss,Traditional Finance (Near-miss),0.065556,0.093265,0.7,0.7449,59,101
+2011 Thailand Floods,Global Logistics,0.019968,0.005658,3.5,0.1785,18,19

@@ -1,0 +1,46 @@
+Case,Domain,Method,Level,Pi_crisis,Pi_control,Separation
+2008 Financial,Traditional Finance,ρ only,1-Single,0.848532,0.328376,2.58
+2008 Financial,Traditional Finance,Ψ only,1-Single,1.816506,0.336039,5.41
+2008 Financial,Traditional Finance,Ω only,1-Single,2.642335,1.288358,2.05
+2008 Financial,Traditional Finance,ρ × Ψ,2-Dual,1.17235,0.081274,14.42
+2008 Financial,Traditional Finance,ρ × Ω,2-Dual,0.857106,0.271751,3.15
+2008 Financial,Traditional Finance,Ψ × Ω,2-Dual,1.895586,0.279049,6.79
+2008 Financial,Traditional Finance,ρ + Ψ + Ω,3-Triple,5.307374,1.952773,2.72
+2008 Financial,Traditional Finance,"max(ρ,Ψ,Ω)",3-Triple,3.395779,1.302368,2.61
+2008 Financial,Traditional Finance,ρ × Ψ × Ω,3-Triple,1.257892,0.067708,18.58
+Terra-Luna,Digital Assets,ρ only,1-Single,0.352417,0.213864,1.65
+Terra-Luna,Digital Assets,Ψ only,1-Single,0.208527,0.114112,1.83
+Terra-Luna,Digital Assets,Ω only,1-Single,0.947166,0.50846,1.86
+Terra-Luna,Digital Assets,ρ × Ψ,2-Dual,0.086634,0.047201,1.84
+Terra-Luna,Digital Assets,ρ × Ω,2-Dual,0.307468,0.183034,1.68
+Terra-Luna,Digital Assets,Ψ × Ω,2-Dual,0.187943,0.09737,1.93
+Terra-Luna,Digital Assets,ρ + Ψ + Ω,3-Triple,1.508109,0.836436,1.8
+Terra-Luna,Digital Assets,"max(ρ,Ψ,Ω)",3-Triple,0.963134,0.514663,1.87
+Terra-Luna,Digital Assets,ρ × Ψ × Ω,3-Triple,0.077564,0.040011,1.94
+Fukushima,Physical Infrastructure,ρ only,1-Single,0.797879,0.420076,1.9
+Fukushima,Physical Infrastructure,Ψ only,1-Single,0.476504,0.243249,1.96
+Fukushima,Physical Infrastructure,Ω only,1-Single,0.25207,0.141835,1.78
+Fukushima,Physical Infrastructure,ρ × Ψ,2-Dual,0.437121,0.2107,2.07
+Fukushima,Physical Infrastructure,ρ × Ω,2-Dual,0.229188,0.122839,1.87
+Fukushima,Physical Infrastructure,Ψ × Ω,2-Dual,0.151196,0.072107,2.1
+Fukushima,Physical Infrastructure,ρ + Ψ + Ω,3-Triple,1.526453,0.805159,1.9
+Fukushima,Physical Infrastructure,"max(ρ,Ψ,Ω)",3-Triple,0.830914,0.427277,1.94
+Fukushima,Physical Infrastructure,ρ × Ψ × Ω,3-Triple,0.140637,0.062468,2.25
+COVID-19,Pandemic / Public Health,ρ only,1-Single,5.924832,0.009156,647.1
+COVID-19,Pandemic / Public Health,Ψ only,1-Single,0.593125,0.27947,2.12
+COVID-19,Pandemic / Public Health,Ω only,1-Single,0.60634,0.357946,1.69
+COVID-19,Pandemic / Public Health,ρ × Ψ,2-Dual,12.294344,0.007218,1703.21
+COVID-19,Pandemic / Public Health,ρ × Ω,2-Dual,10.776392,0.008006,1346.12
+COVID-19,Pandemic / Public Health,Ψ × Ω,2-Dual,0.773409,0.246917,3.13
+COVID-19,Pandemic / Public Health,ρ + Ψ + Ω,3-Triple,7.124297,0.646573,11.02
+COVID-19,Pandemic / Public Health,"max(ρ,Ψ,Ω)",3-Triple,6.283466,0.360424,17.43
+COVID-19,Pandemic / Public Health,ρ × Ψ × Ω,3-Triple,22.915419,0.006319,3626.66
+Supply Chain,Global Logistics,ρ only,1-Single,0.41618,0.227349,1.83
+Supply Chain,Global Logistics,Ψ only,1-Single,3.875694,0.331188,11.7
+Supply Chain,Global Logistics,Ω only,1-Single,2.110858,0.337564,6.25
+Supply Chain,Global Logistics,ρ × Ψ,2-Dual,0.314086,0.053866,5.83
+Supply Chain,Global Logistics,ρ × Ω,2-Dual,0.297272,0.149202,1.99
+Supply Chain,Global Logistics,Ψ × Ω,2-Dual,3.213333,0.093167,34.49
+Supply Chain,Global Logistics,ρ + Ψ + Ω,3-Triple,6.402732,0.896101,7.15
+Supply Chain,Global Logistics,"max(ρ,Ψ,Ω)",3-Triple,4.429885,0.533734,8.3
+Supply Chain,Global Logistics,ρ × Ψ × Ω,3-Triple,0.260594,0.028285,9.21

@@ -1,0 +1,13 @@
+Perturbed_Variable,Noise_Level,Separation,Pct_Change
+ρ (Fed Funds Rate),10%,18.6,+0.2%
+Ψ (TED Spread),10%,18.5,-0.6%
+Ω (Bank Credit),10%,18.6,-0.1%
+ρ (Fed Funds Rate),20%,18.6,+0.3%
+Ψ (TED Spread),20%,18.6,+0.3%
+Ω (Bank Credit),20%,18.6,+0.1%
+ρ (Fed Funds Rate),30%,18.6,+0.2%
+Ψ (TED Spread),30%,18.8,+1.2%
+Ω (Bank Credit),30%,18.6,+0.0%
+ρ (Fed Funds Rate),50%,18.7,+0.8%
+Ψ (TED Spread),50%,19.2,+3.2%
+Ω (Bank Credit),50%,18.4,-0.7%

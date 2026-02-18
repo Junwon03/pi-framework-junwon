@@ -1,0 +1,6 @@
+Case,Window_size,N_windows,Pi_crisis,Sbar_crisis,Pi_ctrl_mean,Pi_ctrl_std,Sbar_ctrl_mean,Sbar_ctrl_std,Sep_Pi_mean,Sep_Pi_95CI_lo,Sep_Pi_95CI_hi,Sep_Sbar_mean,Cohen_d_Pi,Cohen_d_Sbar,Note
+2008 Financial,180,14,1.257892,0.463768,0.023843,0.006085,0.048348,0.012338,57.6,41.0,107.5,10.5,202.81,33.67,
+Terra-Luna,180,2,0.077564,0.071492,0.03368,0.006674,0.068295,0.013533,2.3,2.0,2.7,1.1,6.58,0.24,
+Fukushima,180,1,0.140637,0.159914,0.062468,N/A,0.128818,N/A,2.3,N/A,N/A,1.2,N/A,N/A,Control shorter than window; single control used
+COVID-19,180,1,22.915419,39.82918,0.006319,N/A,0.015478,N/A,3626.7,N/A,N/A,2573.2,N/A,N/A,Control shorter than window; single control used
+Supply Chain,6,6,0.260594,0.066535,0.005098,0.010698,0.010196,0.021396,3910.5,19.3,17343.9,499.2,23.88,2.63,

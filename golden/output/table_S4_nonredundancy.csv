@@ -1,0 +1,6 @@
+Case,"r(rho,psi)","r(rho,omega)","r(psi,omega)",max|r|,Pass(<0.7)
+2008 Financial,0.152,0.126,0.206,0.206,Yes
+Terra-Luna,0.181,-0.134,-0.142,0.181,Yes
+Fukushima,-0.004,-0.004,0.039,0.039,Yes
+COVID-19,0.122,-0.006,0.655,0.655,Yes
+Supply Chain,0.006,0.952,0.126,0.952,No

@@ -1,0 +1,21 @@
+Case,Percentile,Separation
+2008 Financial,P95,18.6
+2008 Financial,P97.5,18.6
+2008 Financial,P99,18.6
+2008 Financial,P99.5,18.6
+Terra-Luna,P95,1.9
+Terra-Luna,P97.5,1.9
+Terra-Luna,P99,1.9
+Terra-Luna,P99.5,1.9
+Fukushima,P95,2.3
+Fukushima,P97.5,2.3
+Fukushima,P99,2.3
+Fukushima,P99.5,2.3
+COVID-19,P95,3626.7
+COVID-19,P97.5,3626.7
+COVID-19,P99,3626.7
+COVID-19,P99.5,3626.7
+Supply Chain,P95,9.2
+Supply Chain,P97.5,9.2
+Supply Chain,P99,9.2
+Supply Chain,P99.5,9.2

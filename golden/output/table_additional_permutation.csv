@@ -1,0 +1,4 @@
+Case,N,Pi_actual,z_score,p_value,Significant
+2000 Dot-com Crash,204,0.228969,8.44,<1e-04,Yes
+2019 Repo Near-miss,59,0.065556,-2.44,0.9929,No
+2011 Thailand Floods,18,0.019968,-0.17,0.4854,No

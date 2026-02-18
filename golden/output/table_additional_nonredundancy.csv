@@ -1,0 +1,4 @@
+Case,"r(rho,psi)","r(rho,omega)","r(psi,omega)",max|r|,Pass(<0.7)
+2000 Dot-com Crash,0.576,0.607,0.765,0.765,No
+2019 Repo Near-miss,0.267,0.866,0.547,0.866,No
+2011 Thailand Floods,0.361,-0.185,-0.2,0.361,Yes

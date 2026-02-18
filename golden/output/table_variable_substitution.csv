@@ -1,0 +1,6 @@
+Configuration,rho,psi,omega,Pi_crisis,Pi_control,Separation,N_crisis,N_control,Pct_change_from_baseline
+Baseline (DFF x TEDRATE x TOTBKCR),DFF,TEDRATE,TOTBKCR,1.2579,0.0677,18.6,990,574,0.0%
+rho -> DGS2 (2-Year Treasury),DGS2,TEDRATE,TOTBKCR,0.9947,0.1999,5.0,990,574,-73.2%
+Psi -> VIXCLS (VIX),DFF,VIXCLS,TOTBKCR,1.1369,0.1782,6.4,990,574,-65.7%
+Omega -> COMPOUT (Commercial Paper),DFF,TEDRATE,COMPOUT,0.4733,0.0061,77.2,990,574,+315.4%
+All three substituted (DGS2 x VIX x COMPOUT),DGS2,VIXCLS,COMPOUT,0.2285,0.0547,4.2,990,574,-77.5%
