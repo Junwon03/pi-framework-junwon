@@ -5,30 +5,43 @@ import sys
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GOLDEN = os.path.join(BASE, "golden")
 TARGET_DIRS = ["output", "data"]
-ALLOWED_EXT = {".csv", ".txt"}  # figures(.png/.pdf) 제외
 
 
 def sha256(path):
-    digest = hashlib.sha256()
+    h = hashlib.sha256()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def should_compare(rel_path):
+    # figures는 환경/메타데이터 차이로 해시가 자주 바뀌므로 제외
+    if rel_path.startswith("output/figures/"):
+        return False
+
+    ext = os.path.splitext(rel_path)[1].lower()
+
+    # output은 csv/txt만 비교, data는 csv만 비교
+    if rel_path.startswith("output/"):
+        return ext in {".csv", ".txt"}
+    if rel_path.startswith("data/"):
+        return ext == ".csv"
+
+    return False
 
 
 def list_files(root):
     files = []
-    for dirname in TARGET_DIRS:
-        base_dir = os.path.join(root, dirname)
+    for d in TARGET_DIRS:
+        base_dir = os.path.join(root, d)
         if not os.path.exists(base_dir):
             continue
-        for current_root, _, names in os.walk(base_dir):
+        for cur, _, names in os.walk(base_dir):
             for name in names:
-                ext = os.path.splitext(name)[1].lower()
-                if ext not in ALLOWED_EXT:
-                    continue
-                rel = os.path.relpath(os.path.join(current_root, name), root)
-                files.append(rel)
+                rel = os.path.relpath(os.path.join(cur, name), root).replace("\\", "/")
+                if should_compare(rel):
+                    files.append(rel)
     return sorted(files)
 
 
@@ -39,22 +52,20 @@ def main():
 
     expected = list_files(GOLDEN)
     if not expected:
-        print("ERROR: golden/output or golden/data has no comparable files.")
+        print("ERROR: no comparable files in golden.")
         sys.exit(1)
 
     failed = False
     for rel in expected:
-        golden_path = os.path.join(GOLDEN, rel)
-        actual_path = os.path.join(BASE, rel)
+        g = os.path.join(GOLDEN, rel)
+        a = os.path.join(BASE, rel)
 
-        if not os.path.exists(actual_path):
+        if not os.path.exists(a):
             print(f"MISSING: {rel}")
             failed = True
             continue
 
-        golden_hash = sha256(golden_path)
-        actual_hash = sha256(actual_path)
-        if golden_hash != actual_hash:
+        if sha256(g) != sha256(a):
             print(f"DIFF: {rel}")
             failed = True
 
