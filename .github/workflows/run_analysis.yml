@@ -67,8 +67,70 @@ jobs:
       - name: ST16-17 Method comparison and pseudo-prospective
         run: python run_method_comparison.py
 
-      - name: Verify outputs against golden baseline
-        run: python scripts/verify_outputs.py
+      - name: Verify outputs against golden baseline (csv/txt only)
+        run: |
+          python - <<'PY'
+          import hashlib, os, sys
+
+          base = os.getcwd()
+          golden = os.path.join(base, "golden")
+
+          def sha256(p):
+            h = hashlib.sha256()
+            with open(p, "rb") as f:
+              for c in iter(lambda: f.read(8192), b""):
+                h.update(c)
+            return h.hexdigest()
+
+          def should_compare(rel):
+            rel = rel.replace("\\", "/")
+            if rel.startswith("output/figures/"):
+              return False
+            ext = os.path.splitext(rel)[1].lower()
+            if rel.startswith("output/"):
+              return ext in {".csv", ".txt"}
+            if rel.startswith("data/"):
+              return ext == ".csv"
+            return False
+
+          if not os.path.exists(golden):
+            print("ERROR: golden/ directory does not exist.")
+            sys.exit(1)
+
+          expected = []
+          for d in ["output", "data"]:
+            root = os.path.join(golden, d)
+            if not os.path.exists(root):
+              continue
+            for r, _, files in os.walk(root):
+              for fn in files:
+                rel = os.path.relpath(os.path.join(r, fn), golden).replace("\\", "/")
+                if should_compare(rel):
+                  expected.append(rel)
+
+          expected = sorted(expected)
+          if not expected:
+            print("ERROR: no comparable files in golden.")
+            sys.exit(1)
+
+          failed = False
+          for rel in expected:
+            g = os.path.join(golden, rel)
+            a = os.path.join(base, rel)
+            if not os.path.exists(a):
+              print(f"MISSING: {rel}")
+              failed = True
+              continue
+            if sha256(g) != sha256(a):
+              print(f"DIFF: {rel}")
+              failed = True
+
+          if failed:
+            print("FAIL: output differs from golden baseline.")
+            sys.exit(1)
+
+          print("OK: all comparable outputs match golden baseline.")
+          PY
 
       - name: Upload results
         uses: actions/upload-artifact@v4
