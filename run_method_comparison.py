@@ -23,9 +23,21 @@ import matplotlib.pyplot as plt
 from matplotlib.dates import DateFormatter
 
 _base = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(_base, "data")
-if not os.path.exists(DATA_DIR):
-    DATA_DIR = os.path.join(_base, "Data")
+
+# Prefer the directory that actually contains the core 5-case CSV files.
+core_files = ["crisis_2008_pi.csv", "control_2004_2006_pi.csv"]
+data_upper = os.path.join(_base, "Data")
+data_lower = os.path.join(_base, "data")
+
+if all(os.path.exists(os.path.join(data_upper, f)) for f in core_files):
+    DATA_DIR = data_upper
+elif all(os.path.exists(os.path.join(data_lower, f)) for f in core_files):
+    DATA_DIR = data_lower
+elif os.path.exists(data_upper):
+    DATA_DIR = data_upper
+else:
+    DATA_DIR = data_lower
+
 OUTPUT_DIR = os.path.join(_base, "output")
 FIG_DIR = os.path.join(OUTPUT_DIR, "figures")
 os.makedirs(FIG_DIR, exist_ok=True)
