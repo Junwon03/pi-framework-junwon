@@ -169,13 +169,20 @@ S = ρ̃ × Ψ̃ × Ω̃ uses no explicit weights. However, P-limit normalizatio
 
 ## Data
 
-Pre-computed results in `Data/`. All source data from public APIs:
+## Data
 
-- [FRED](https://fred.stlouisfed.org): DFF, TEDRATE, TOTBKCR, BAMLH0A0HYM2, PCEDG, DTCDISA066MSFRBNY, WPU3012
-- [USGS Earthquake Hazards](https://earthquake.usgs.gov): Japan M2+ events via FDSN API
-- [Johns Hopkins CSSE](https://github.com/CSSEGISandData/COVID-19): Global confirmed cases
-- [Yahoo Finance](https://finance.yahoo.com): BTC-USD, ETH-USD, LUNC-USD, ^N225, JPY=X, ^VIX, HYG, LQD
+Primary manuscript analyses run from pre-computed case files in `Data/`.
+Raw source data (used to build case datasets and supplementary tests) come from public APIs:
+
+- [FRED](https://fred.stlouisfed.org): DFF, TEDRATE, TOTBKCR, BAMLH0A0HYM2, PCEDG, DTCDISA066MSFRBNY, WPU3012, DGORDER
+- [FRED](https://fred.stlouisfed.org) (supplementary substitution tests): DGS2, VIXCLS, COMPOUT
+- [USGS Earthquake Hazards](https://earthquake.usgs.gov): Japan M2+ events via FDSN Event API
+- [Johns Hopkins CSSE](https://github.com/CSSEGISandData/COVID-19): Global confirmed COVID-19 cases
+- [Yahoo Finance](https://finance.yahoo.com): BTC-USD, ETH-USD, LUNC-USD, ^N225, JPY=X, ^VIX
 - [CoinGecko](https://www.coingecko.com): TerraUSD (UST) market chart
+
+Note: Proxy series (e.g., HYG/LQD fallback) exist only as contingency logic in data-collection utilities and are not part of the baseline manuscript tables unless explicitly stated.
+
 
 ## Repository Structure
 
@@ -212,7 +219,13 @@ Pre-computed results in `Data/`. All source data from public APIs:
 
 ## AI Disclosure
 
-Large language models (Claude - opus 4.5, Anthropic) were used to assist with code development, data analysis pipeline design, manuscript structure planning, and code review/audit. All scientific hypotheses, variable selections, methodological decisions, and final conclusions were produced by the author. The complete code is publicly available in this repository for independent verification. A full code audit report (`Audit report.md`) documents all verified checks and identified issues.
+## AI Disclosure
+
+Large language models were used to assist with code development, pipeline refinement, reproducibility hardening, and audit/readme editing, including:
+- Claude (Opus 4.5, Anthropic)
+- OpenAI Codex (GPT-5, OpenAI)
+All scientific hypotheses, variable selections, methodological decisions, interpretation, and final conclusions were made by the author.  
+The complete code is publicly available for independent verification. A full audit record is documented in `Audit report.md`.
 
 ## Citation
 
