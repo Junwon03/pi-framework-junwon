@@ -11,6 +11,23 @@ python run_all.py --all    # Core + supplementary + publication figures
 python run_all.py --svb    # Include SVB out-of-sample (needs FRED_API_KEY)
 ```
 
+For full reproducibility with the same manuscript baseline:
+
+```bash
+export FRED_API_KEY="your_key"
+export FRED_VINTAGE_DATE="2026-02-17"
+python run_all.py --all
+python run_benchmark.py
+python run_v12_enhancements.py
+python run_v13_enhancements.py
+python run_variable_substitution.py
+python run_additional_cases.py
+python sensitivity/sensitivity_delta_k.py
+python sensitivity/sensitivity_matched_pipeline.py
+python run_method_comparison.py
+python scripts/verify_outputs.py
+```
+
 Additional scripts:
 
 ```bash
@@ -130,10 +147,11 @@ S = ρ̃ × Ψ̃ × Ω̃ uses no explicit weights. However, P-limit normalizatio
 ## Reproducibility
 
 - **Random seed**: `np.random.seed(42)` fixed globally. Tested across 8 alternative seeds — all conclusions unchanged (z-score variation < ±0.5).
-- **Environment**: Python 3.11+, dependencies: `pandas numpy scipy requests matplotlib scikit-learn`
-- **Locked environment**: Use `requirements-lock.txt` for fixed package versions in CI/local reruns.
-- **All results recomputable**: `python run_all.py --all` reproduces every table and figure. Sensitivity scripts require `FRED_API_KEY` environment variable. `run_method_comparison.py` requires `scikit-learn` (for PCA).
-- **GitHub Actions**: Full pipeline runs in CI, producing `pi-analysis-results.zip` artifact with all outputs.
+- **Environment**: Python `3.11.8` in CI, dependencies pinned in `requirements-lock.txt`.
+- **Frozen API vintage**: CI fixes FRED realtime window via `FRED_VINTAGE_DATE=2026-02-17`.
+- **Golden baseline verification**: CI compares generated `output/*.csv`, `output/*.txt`, and `data/*.csv` against `golden/` reference files using SHA-256.
+- **Secrets required**: `FRED_API_KEY` must be configured in GitHub Actions secrets for full pipeline.
+- **GitHub Actions**: Full pipeline runs in CI and uploads `pi-analysis-results` artifact after reproducibility verification.
 
 **Note on pi column in CSV data files:** The `pi` column in Data/ CSV files is recomputed at runtime by `run_all.py` using `stress × dt` (dt=1/365 for daily, dt=1/12 for monthly). Raw observations (rho, psi, omega, rho_norm, psi_norm, omega_norm, stress) are unchanged from original computation. The 2008 case CSV was originally generated with dt=1/252 by `pi_calculator.py`, but `run_all.py` overrides this with dt=1/365 for consistency with other cases. This has no effect on any reported ratio or test statistic.
 
@@ -162,6 +180,7 @@ Pre-computed results in `Data/`. All source data from public APIs:
 ## Repository Structure
 
 ```
+├── .github/workflows/run_analysis.yml  # Locked CI pipeline + baseline verification
 ├── Cases/                          # Individual case data generation scripts
 │   ├── config.py                   #   2008 case configuration
 │   ├── data_fetcher.py             #   FRED data fetcher (requires API key)
@@ -183,13 +202,17 @@ Pre-computed results in `Data/`. All source data from public APIs:
 ├── run_variable_substitution.py    # Variable substitution robustness (ST9)
 ├── run_additional_cases.py         # Additional case computation
 ├── run_method_comparison.py        # Method benchmark + pseudo-prospective (ST16-17, Figure 7)
-├── AUDIT_REPORT.md                 # Code & data integrity audit results
+├── requirements-lock.txt           # Pinned Python dependency versions
+├── scripts/verify_outputs.py       # SHA-256 baseline checker (golden vs generated outputs)
+├── golden/                         # Frozen baseline outputs used in CI reproducibility check
+├── Audit report.md                 # Code & data integrity audit results
+├── LICENSE                         # MIT License
 └── README.md                       # This file
 ```
 
 ## AI Disclosure
 
-Large language models (Claude, Anthropic) were used to assist with code development, data analysis pipeline design, manuscript structure planning, and code review/audit. All scientific hypotheses, variable selections, methodological decisions, and final conclusions were produced by the author. The complete code is publicly available in this repository for independent verification. A full code audit report (`AUDIT_REPORT.md`) documents all verified checks and identified issues.
+Large language models (Claude - opus 4.5, Anthropic) were used to assist with code development, data analysis pipeline design, manuscript structure planning, and code review/audit. All scientific hypotheses, variable selections, methodological decisions, and final conclusions were produced by the author. The complete code is publicly available in this repository for independent verification. A full code audit report (`Audit report.md`) documents all verified checks and identified issues.
 
 ## Citation
 
