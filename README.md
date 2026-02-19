@@ -167,7 +167,6 @@ S = ρ̃ × Ψ̃ × Ω̃ uses no explicit weights. However, P-limit normalizatio
 - **Variable selection**: Requires domain expertise. Selection involved iterative refinement; the current variables are not claimed to be unique or optimal.
 - **Pseudo-prospective, not prospective**: The rolling stress signal analysis (ST17) uses thresholds calibrated from the full control period and does not constitute a true out-of-sample forecast. The 398-day lead in the 2008 case is retrospectively identified.
 
-## Data
 
 ## Data
 
