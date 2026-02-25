@@ -181,8 +181,8 @@ def run_benchmark():
                 'Domain': CASES[name]['domain'],
                 'Method': method_name,
                 'Level': level,
-                'Pi_crisis': round(result['pi_crisis'], 6),
-                'Pi_control': round(result['pi_control'], 6),
+                'Pi_crisis': round(result['pi_crisis'],
+                'Pi_control': round(result['pi_control'],
                 'Separation': round(result['separation'], 2),
             })
 
