@@ -219,8 +219,8 @@ Note: Proxy series (e.g., HYG/LQD fallback) exist only as contingency logic in d
 ## AI Disclosure
 
 Large language models were used to assist with code development, pipeline refinement, reproducibility hardening, and audit/readme editing, including:
-- Claude (Opus 4.5, Anthropic)
-- OpenAI Codex (GPT-5.2, OpenAI)
+- Claude Opus 4.5 (Anthropic)
+- GPT 5.3 Codex (OpenAI)
 All scientific hypotheses, variable selections, methodological decisions, interpretation, and final conclusions were made by the author.  
 The complete code is publicly available for independent verification. A full audit record is documented in `Audit report.md`.
 
