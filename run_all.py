@@ -884,53 +884,83 @@ def main():
 
     # ── ST15 + ST16: Sensitivity Analyses (FRED_API_KEY required) ──
     repo_root = os.path.dirname(os.path.abspath(__file__))
-    st15_script = os.path.join(repo_root, 'sensitivity', 'sensitivity_delta_k.py')
-    st16_script = os.path.join(repo_root, 'sensitivity', 'sensitivity_matched_pipeline.py')
+    fred_api_key = os.environ.get('FRED_API_KEY', '')
 
-    if os.path.exists(st15_script) or os.path.exists(st16_script):
+    sensitivity_jobs = [
+        (
+            'ST15',
+            os.path.join(repo_root, 'sensitivity', 'sensitivity_delta_k.py'),
+            'Transform window sensitivity (k = 1,3,5,10,20)',
+            'table_ST15_delta_k_sensitivity.csv',
+        ),
+        (
+            'ST16',
+            os.path.join(repo_root, 'sensitivity', 'sensitivity_matched_pipeline.py'),
+            'Matched-pipeline specificity (Dotcom/Repo)',
+            'table_ST16_matched_pipeline.csv',
+        ),
+    ]
+
+    if any(os.path.exists(script) for _, script, _, _ in sensitivity_jobs):
         print(f'\n\n{"━" * 74}')
-        print(f'  SENSITIVITY ANALYSES (ST15–ST16)')
+        print('  SENSITIVITY ANALYSES (ST15–ST16)')
         print(f'{"━" * 74}')
 
-    if os.path.exists(st15_script):
-        print('\n  [ST15] Transform window sensitivity (k = 1,3,5,10,20)...')
-        try:
-            res = subprocess.run(
-                [sys.executable, st15_script],
-                capture_output=True, text=True, timeout=300,
-                env={**os.environ}
-            )
-            if res.returncode == 0:
-                print('    Done → output/table_ST15_delta_k_sensitivity.csv')
-            else:
-                print(f'    Skipped (exit {res.returncode})')
-                err = res.stderr.strip().split('\n')[-1] if res.stderr else ''
-                if err:
-                    print(f'    {err[:200]}')
-        except subprocess.TimeoutExpired:
-            print('    Skipped (timeout >300s)')
-        except Exception as e:
-            print(f'    Skipped ({e})')
+    for label, script, description, output_name in sensitivity_jobs:
+        if not os.path.exists(script):
+            continue
 
-    if os.path.exists(st16_script):
-        print('\n  [ST16] Matched-pipeline specificity (Dotcom/Repo)...')
+        print(f'\n  [{label}] {description}...')
+
+        if not fred_api_key:
+            print('    Skipped (FRED_API_KEY not set)')
+            continue
+
+        expected_output = os.path.join(repo_root, 'output', output_name)
+        before_mtime_ns = (
+            os.stat(expected_output).st_mtime_ns
+            if os.path.exists(expected_output)
+            else None
+        )
+
         try:
             res = subprocess.run(
-                [sys.executable, st16_script],
-                capture_output=True, text=True, timeout=300,
-                env={**os.environ}
+                [sys.executable, script],
+                capture_output=True,
+                text=True,
+                timeout=300,
+                env={**os.environ},
             )
-            if res.returncode == 0:
-                print('    Done → output/table_ST16_matched_pipeline.csv')
+
+            output_exists = os.path.exists(expected_output)
+            after_mtime_ns = (
+                os.stat(expected_output).st_mtime_ns
+                if output_exists
+                else None
+            )
+            output_refreshed = output_exists and (
+                before_mtime_ns is None
+                or after_mtime_ns != before_mtime_ns
+            )
+
+            if res.returncode == 0 and output_refreshed:
+                print(f'    Done → output/{output_name}')
+            elif res.returncode == 0:
+                print(f'    Failed ({output_name} was not newly created or refreshed)')
+                message = res.stdout.strip().split('\n')[-1] if res.stdout else ''
+                if message:
+                    print(f'    {message[:200]}')
             else:
                 print(f'    Skipped (exit {res.returncode})')
-                err = res.stderr.strip().split('\n')[-1] if res.stderr else ''
-                if err:
-                    print(f'    {err[:200]}')
+                message = res.stderr.strip().split('\n')[-1] if res.stderr else ''
+                if not message and res.stdout:
+                    message = res.stdout.strip().split('\n')[-1]
+                if message:
+                    print(f'    {message[:200]}')
         except subprocess.TimeoutExpired:
             print('    Skipped (timeout >300s)')
-        except Exception as e:
-            print(f'    Skipped ({e})')
+        except Exception as exc:
+            print(f'    Skipped ({exc})')
 
     # ── Final summary ──
     passed = sum(1 for r in r1 if r['separation'] > 1.5)
