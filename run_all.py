@@ -306,10 +306,8 @@ def run_failure_modes():
         else:
             lead_days = 0
 
-        if pct_of_max < 10:
-            mode = 'Explosive'
-            analogy = 'Detonation'
-        elif pct_of_max > 80:
+        # Exploratory retrospective pattern labels, not validated failure laws.
+        if pct_of_max > 80:
             mode = 'Pre-loaded'
             analogy = 'Creep rupture'
         elif lead_days > 300:

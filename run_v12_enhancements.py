@@ -289,17 +289,20 @@ def run_sliding_controls():
 
 def run_cutoff_sensitivity():
     """
-    Test whether failure mode classification changes under alternative cutoffs.
-    Vary the three key thresholds:
+    Assess whether exploratory failure-mode labels change under selected
+    alternative cutoffs. This is a one-at-a-time sensitivity analysis,
+    not validation of the taxonomy.
+
+    Vary three selected thresholds:
       - Pre-loaded cutoff: 0.80 → test 0.70, 0.75, 0.80, 0.85, 0.90
       - Ductile lead cutoff: 300 days → test 200, 250, 300, 350, 400
       - Onset threshold: 10% → test 5%, 10%, 15%, 20%
     
-    If classifications are stable across ranges, the taxonomy is robust.
+    Results describe label sensitivity within the tested ranges only.
     """
     print(f'\n\n{"=" * 75}')
     print('  ENHANCEMENT 3: Failure Mode Cutoff Sensitivity')
-    print('  Addresses reviewer concern: "arbitrary thresholds"')
+    print('  Exploratory one-at-a-time threshold sensitivity')
     print('=' * 75)
 
     preloaded_cuts = [0.70, 0.75, 0.80, 0.85, 0.90]
@@ -468,7 +471,7 @@ def main():
     print(f'     → {still_pass}/5 pass with S̄-based separation')
     
     print(f'  2. Sliding controls: effect sizes computed for all cases')
-    print(f'  3. Cutoff sensitivity: classification stability verified')
+    print(f'  3. Cutoff sensitivity: alternative-threshold labels reported')
     
     print(f'\n  Output files:')
     for f in ['table_enhanced_time_normalized.csv',
