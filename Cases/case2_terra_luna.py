@@ -57,26 +57,15 @@ def fetch():
     rho = btc['Close'].diff(DELTA_RHO).abs()
     print(f"  ρ (BTC |Δ{DELTA_RHO}d|): {rho.dropna().shape[0]} pts")
     
-    luna = None
-    try:
-        import requests
-        url = f"https://api.coingecko.com/api/v3/coins/terrausd/market_chart/range?vs_currency=usd&from={int(pd.Timestamp(DATA_START).timestamp())}&to={int(pd.Timestamp(DATA_END).timestamp())}"
-        r = requests.get(url, timeout=30)
-        if r.status_code == 200 and len(r.json().get('prices',[])) > 30:
-            df = pd.DataFrame(r.json()['prices'], columns=['ts','price'])
-            df['date'] = pd.to_datetime(df['ts'], unit='ms').dt.normalize()
-            luna = df.groupby('date')['price'].last()
-            print(f"  Ψ UST (CoinGecko): {len(luna)} rows")
-    except: pass
-    
-    if luna is None or len(luna) < 30:
-        for t in ['LUNC-USD','LUNA1-USD']:
-            df = yf.download(t, start=DATA_START, end=DATA_END, progress=False)
-            if not df.empty:
-                if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-                df.index = pd.to_datetime(df.index).tz_localize(None).normalize()
-                luna = df['Close']; print(f"  Ψ ({t}): {len(luna)} rows"); break
-    if luna is None: print("❌ LUNA 데이터 없음"); return None
+    luna_df = yf.download('LUNC-USD', start=DATA_START, end=DATA_END, progress=False, auto_adjust=False)
+    if luna_df.empty:
+        print("❌ LUNC-USD 데이터 없음")
+        return None
+    if isinstance(luna_df.columns, pd.MultiIndex):
+        luna_df.columns = luna_df.columns.get_level_values(0)
+    luna_df.index = pd.to_datetime(luna_df.index).tz_localize(None).normalize()
+    luna = luna_df['Close']
+    print(f"  Ψ LUNA Classic (LUNC-USD): {len(luna)} rows")
     psi = luna.diff(DELTA_PSI).abs()
     
     eth = yf.download('ETH-USD', start=DATA_START, end=DATA_END, progress=False)
