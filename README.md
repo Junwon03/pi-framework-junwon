@@ -212,7 +212,7 @@ Note: Proxy series (e.g., HYG/LQD fallback) exist only as contingency logic in d
 ├── run_additional_cases.py         # Additional case computation
 ├── run_method_comparison.py        # Retrospective trajectory; optional legacy method-comparison audit
 ├── requirements-lock.txt           # Pinned Python dependency versions
-├── scripts/verify_outputs.py       # SHA-256 baseline checker (golden vs generated outputs)
+├── scripts/verify_outputs.py       # Active deterministic CSV/TXT baseline checker
 ├── golden/                         # Frozen baseline outputs used in CI reproducibility check
 ├── Audit report.md                 # Code & data integrity audit results
 ├── LICENSE                         # MIT License

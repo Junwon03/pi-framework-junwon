@@ -1,13 +1,14 @@
-Pi Framework — Unified Analysis Results
+Pi Framework — Retrospective Cross-Case Results
 ==================================================
 
-1. Cross-domain:     5/5 cases Crisis > Control
-2. Mult vs Add:      Multiplicative wins 5/5
+1. Cumulative contrast: 5/5 selected crisis windows > controls
+2. Three-formulation comparison: multiplicative highest in 5/5
 3. Permutation test: 4/5 significant (p < 0.05)
-4. Failure modes:    3 classes identified
+4. Exploratory patterns: three labels assigned
 
 Fisher combined p-value: 1.66e-11
+Interpretation: retrospective characterization of five selected cases; not universal validation or prospective prediction.
 
 Supplementary: S1 (P-limit), S2 (Perturbation), S4 (Non-redundancy)
-Sensitivity: ST15 (Transform window), ST16 (Matched-pipeline specificity)
+Sensitivity: Transform-window analysis retained; matched-pipeline analysis excluded from the revised evidentiary package and retained only for audit reproducibility.
 Figures: 6 publication figures (300 dpi PNG + PDF)

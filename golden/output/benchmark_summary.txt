@@ -2,10 +2,10 @@ Pi Framework — Channel Ablation Benchmark
 ==================================================
 
 Methods tested: 9
-Domains tested: 5
+Selected cases tested: 5
 Total comparisons: 45
 
-Ranking by mean separation ratio:
+Mean separation ranking across selected cases:
   1. ρ × Ψ × Ω         mean = 731.7x <-- Pi (current framework)
   2. ρ × Ψ             mean = 345.5x
   3. ρ × Ω             mean = 271.0x
@@ -16,4 +16,4 @@ Ranking by mean separation ratio:
   8. Ψ only            mean = 4.6x
   9. Ω only            mean = 2.7x
 
-Multiplicative 3-channel wins: 4/5 domains
+Cases with highest ρ×Ψ×Ω separation: 4/5 selected cases

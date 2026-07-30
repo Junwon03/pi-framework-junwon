@@ -372,7 +372,7 @@ def run_block_permutation():
     print(f'\n  {"─"*75}')
     print(f'  Summary: Independent vs Block Permutation')
     print(f'  {"─"*75}')
-    print(f'  {"Case":<18} {"Indep z":<10} {"B=5 z":<10} {"B=10 z":<10} {"B=20 z":<10} {"Conclusion":<15}')
+    print(f'  {"Case":<18} {"Indep z":<10} {"B=5 z":<10} {"B=10 z":<10} {"B=20 z":<10} {"All blocks p<0.05?":<20}')
     print(f'  {"─"*75}')
 
     for name in CASES:
@@ -390,13 +390,13 @@ def run_block_permutation():
         while len(z_blocks) < 3:
             z_blocks.append('N/A')
 
-        # Conclusion: if all block z > 1.96, results hold
+        # Descriptive check: significance at p < 0.05 across all tested block sizes
         all_sig = all(
             sub[(sub['Method'].str.startswith('Block'))]['Significant_005'].values == 'Yes'
         ) if len(sub[sub['Method'].str.startswith('Block')]) > 0 else False
 
-        conclusion = 'Robust' if all_sig else 'Weakened'
-        print(f'  {name:<18} {z_ind:<10} {z_blocks[0]:<10} {z_blocks[1]:<10} {z_blocks[2]:<10} {conclusion:<15}')
+        conclusion = 'Yes' if all_sig else 'No'
+        print(f'  {name:<18} {z_ind:<10} {z_blocks[0]:<10} {z_blocks[1]:<10} {z_blocks[2]:<10} {conclusion:<20}')
 
     print(f'\n  Saved: table_v13_block_permutation.csv')
     return df

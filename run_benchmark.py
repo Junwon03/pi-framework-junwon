@@ -2,10 +2,10 @@
 Pi Framework — Channel Ablation Benchmark
 ==========================================
 Compares separation ratios across single-channel, dual-channel,
-and triple-channel stress definitions for all 5 domains.
+and triple-channel stress definitions for 5 selected cases.
 
-Demonstrates why the 3-channel multiplicative formulation (ρ×Ψ×Ω)
-outperforms simpler alternatives.
+Describes how the 3-channel multiplicative formulation (ρ×Ψ×Ω)
+compares with simpler alternatives in the selected cases.
 
 Uses the SAME pre-computed CSV data as run_all.py.
 No additional data collection required.
@@ -226,7 +226,7 @@ def run_benchmark():
         if method_name in ['Ω only', 'Ψ × Ω']:
             print('  ' + '─' * (len(header) - 2))
 
-    # ── Highlight: Π wins? ──
+    # ── Cases where Π has the highest separation ──
     print()
     pi_method = 'ρ × Ψ × Ω'
     wins = 0
@@ -236,17 +236,17 @@ def run_benchmark():
         if pi_sep >= others:
             wins += 1
 
-    print(f'  ✅ ρ×Ψ×Ω achieves highest separation in {wins}/5 domains')
+    print(f'  ρ×Ψ×Ω has the highest separation in {wins}/5 selected cases')
 
     # ── Rank table ──
-    print(f'\n  RANKING BY MEAN SEPARATION:')
+    print(f'\n  MEAN SEPARATION RANKING ACROSS SELECTED CASES:')
     rank_df = df.groupby('Method')['Separation'].mean().sort_values(ascending=False)
     for i, (method, mean_val) in enumerate(rank_df.items(), 1):
         marker = ' ◀ Π' if method == pi_method else ''
         print(f'    {i}. {method:<16}  mean = {mean_val:>8.1f}×{marker}')
 
-    # ── Improvement ratios ──
-    print(f'\n  IMPROVEMENT OF Π OVER ALTERNATIVES:')
+    # ── Relative separation ratios ──
+    print(f'\n  RELATIVE SEPARATION OF Π TO ALTERNATIVES:')
     pi_means = {}
     for case in case_order:
         pi_means[case] = df[(df['Case'] == case) & (df['Method'] == pi_method)]['Separation'].values[0]
@@ -260,7 +260,7 @@ def run_benchmark():
             if alt_sep > 0:
                 improvements.append(pi_means[case] / alt_sep)
         mean_impr = np.mean(improvements)
-        print(f'    vs {method_name:<16}: Π is {mean_impr:>5.1f}× better on average')
+        print(f'    vs {method_name:<16}: mean Π/alternative ratio = {mean_impr:>5.1f}×')
 
     # ── Save CSV ──
     csv_path = os.path.join(OUT_DIR, 'benchmark_full.csv')
@@ -282,13 +282,13 @@ def run_benchmark():
         f.write('Pi Framework — Channel Ablation Benchmark\n')
         f.write('=' * 50 + '\n\n')
         f.write(f'Methods tested: {len(METHODS)}\n')
-        f.write(f'Domains tested: {len(CASES)}\n')
+        f.write(f'Selected cases tested: {len(CASES)}\n')
         f.write(f'Total comparisons: {len(METHODS) * len(CASES)}\n\n')
-        f.write('Ranking by mean separation ratio:\n')
+        f.write('Mean separation ranking across selected cases:\n')
         for i, (method, mean_val) in enumerate(rank_df.items(), 1):
             marker = ' <-- Pi (current framework)' if method == pi_method else ''
             f.write(f'  {i}. {method:<16}  mean = {mean_val:.1f}x{marker}\n')
-        f.write(f'\nMultiplicative 3-channel wins: {wins}/5 domains\n')
+        f.write(f'\nCases with highest ρ×Ψ×Ω separation: {wins}/5 selected cases\n')
     print(f'  Saved: {summary_path}')
 
     return df

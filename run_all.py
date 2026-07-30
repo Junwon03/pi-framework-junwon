@@ -180,7 +180,7 @@ def run_mult_vs_add():
 
         results.append(res)
 
-    print(f'\n  {"Case":<18} {"Multiply":<14} {"Additive":<14} {"Max":<14} {"Winner":<12}')
+    print(f'\n  {"Case":<18} {"Multiply":<14} {"Additive":<14} {"Max":<14} {"Highest":<12}')
     print(f'  {"-" * 70}')
 
     mult_wins = 0
@@ -191,7 +191,7 @@ def run_mult_vs_add():
             mult_wins += 1
         print(f'  {r["name"]:<18} {r["mult"]["sep"]:<14.1f}x {r["add"]["sep"]:<14.1f}x {r["max"]["sep"]:<14.1f}x {winner}')
 
-    print(f'\n  Multiplicative wins: {mult_wins}/{len(results)} cases')
+    print(f'\n  Multiplicative highest separation: {mult_wins}/{len(results)} selected cases')
 
     return results
 

@@ -4,7 +4,7 @@ Pi Framework — v12 Enhancements
 Three new analyses to strengthen NatComms submission:
   1. Time-normalized stress intensity (Π/T = mean S) — addresses window-length bias
   2. Sliding-window control distributions — addresses single-control criticism  
-  3. Failure mode cutoff sensitivity — addresses arbitrary threshold criticism
+  3. Exploratory pattern-label threshold sensitivity
 
 Designed to run alongside existing run_all.py using the same data/ folder.
 Outputs to output/ folder as additional CSV files.
@@ -284,7 +284,7 @@ def run_sliding_controls():
 
 
 # ================================================================
-# ENHANCEMENT 3: FAILURE MODE CUTOFF SENSITIVITY
+# ENHANCEMENT 3: EXPLORATORY PATTERN-LABEL THRESHOLD SENSITIVITY
 # ================================================================
 
 def run_cutoff_sensitivity():
@@ -301,7 +301,7 @@ def run_cutoff_sensitivity():
     Results describe label sensitivity within the tested ranges only.
     """
     print(f'\n\n{"=" * 75}')
-    print('  ENHANCEMENT 3: Failure Mode Cutoff Sensitivity')
+    print('  ENHANCEMENT 3: Exploratory Pattern-Label Threshold Sensitivity')
     print('  Exploratory one-at-a-time threshold sensitivity')
     print('=' * 75)
 
@@ -415,8 +415,8 @@ def run_cutoff_sensitivity():
     df.to_csv(os.path.join(OUT_DIR, 'table_enhanced_cutoff_sensitivity.csv'), index=False)
 
     # Check stability: for each case, how many unique modes across all variations?
-    print(f'\n  Classification stability across all cutoff variations:')
-    print(f'  {"Case":<18} {"Baseline":<14} {"Variants":<30} {"Stable?":<8}')
+    print(f'\n  Exploratory label variation across the tested cutoffs:')
+    print(f'  {"Case":<18} {"Baseline":<14} {"Variants":<30} {"Unchanged?":<10}')
     print(f'  {"-"*70}')
 
     # Baseline modes (preloaded=0.80, ductile=300, onset=0.10)
@@ -465,10 +465,10 @@ def main():
     print(f'\n\n{"="*75}')
     print('  v12 ENHANCEMENT SUMMARY')
     print(f'{"="*75}')
-    print(f'  1. Time-normalized S̄ = Π/T: all 5 cases still separate')
+    print(f'  1. Mean-stress crisis/control ratio exceeds 1.0 in all 5 selected cases')
     
     still_pass = sum(1 for r in r1 if r['Sep_Sbar'] > 1.5)
-    print(f'     → {still_pass}/5 pass with S̄-based separation')
+    print(f'     → {still_pass}/5 meet the script\'s S̄-based separation criterion')
     
     print(f'  2. Sliding controls: effect sizes computed for all cases')
     print(f'  3. Cutoff sensitivity: alternative-threshold labels reported')

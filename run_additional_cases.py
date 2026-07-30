@@ -1,5 +1,5 @@
 """
-Pi Framework — Additional Validation Cases
+Pi Framework — Additional Comparison Cases
 ============================================
 Generates new crisis/control datasets using EXISTING variable definitions
 applied to different time periods. No variable redefinition.
@@ -304,7 +304,7 @@ def process_case(case_id, case_def):
 def main():
     print()
     print('=' * 70)
-    print('  Pi FRAMEWORK - ADDITIONAL VALIDATION CASES')
+    print('  Pi FRAMEWORK - ADDITIONAL COMPARISON CASES')
     print('  Same variables, different time periods')
     print('=' * 70)
 
