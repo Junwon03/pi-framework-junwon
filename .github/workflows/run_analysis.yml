@@ -2,7 +2,9 @@ name: Pi Unified Analysis
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'revision/**'
   workflow_dispatch:
 
 jobs:
