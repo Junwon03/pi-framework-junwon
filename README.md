@@ -11,7 +11,7 @@ python run_all.py --all    # Core + supplementary + publication figures
 python run_all.py --svb    # Include SVB out-of-sample (needs FRED_API_KEY)
 ```
 
-For full reproducibility with the same manuscript baseline:
+For full repository reproducibility, including analyses retained only for audit:
 
 ```bash
 export FRED_API_KEY="your_key"
@@ -40,7 +40,7 @@ python run_method_comparison.py                  # ST16-17: Method benchmark + p
 
 # Sensitivity analyses (require FRED_API_KEY)
 python sensitivity/sensitivity_delta_k.py        # ST14: Transform window k=1,3,5,10,20
-python sensitivity/sensitivity_matched_pipeline.py  # ST15: Matched-pipeline specificity
+python sensitivity/sensitivity_matched_pipeline.py  # Legacy matched-pipeline analysis (audit only)
 ```
 
 ## What This Runs
@@ -58,7 +58,7 @@ python sensitivity/sensitivity_matched_pipeline.py  # ST15: Matched-pipeline spe
 | ST8 | Block Permutation | 4/5 robust to temporal structure |
 | ST10-11 | Additional Cases (Dot-com, Repo, Thailand) | Mixed: 1 weak, 1 negative, 1 non-significant |
 | ST14 | Transform Window Sensitivity | Sep range 16.6–21.1× across k=1..20, all p<0.05 |
-| ST15 | Matched-Pipeline Specificity | Dot-com 1.3×, Repo 0.8× (confirms specificity) |
+| Legacy | Matched-Pipeline Analysis (audit only) | Excluded from the revised evidentiary package; legacy output retained for reproducibility |
 | ST16 | Method Comparison (Π vs CSD vs PCA) | Π wins 3/5; CSD AC(1) near-unity across all domains |
 | ST17 | Pseudo-Prospective Signal Analysis | 2008: 398-day lead; 3/5 pre-collapse signals |
 
@@ -87,7 +87,7 @@ output/
 └── summary.txt
 ```
 
-Additional scripts produce: `benchmark_full.csv`, `benchmark_pivot.csv`, `table_v13_block_permutation.csv`, `table_variable_substitution.csv`, `table_additional_cases.csv`, `table_additional_nonredundancy.csv`, `table_ST15_delta_k_sensitivity.csv`, `table_ST16_matched_pipeline.csv`.
+Additional scripts produce: `benchmark_full.csv`, `benchmark_pivot.csv`, `table_v13_block_permutation.csv`, `table_variable_substitution.csv`, `table_additional_cases.csv`, `table_additional_nonredundancy.csv`, and `table_ST15_delta_k_sensitivity.csv`. The audit-only matched-pipeline script retains its legacy output filename: `table_ST16_matched_pipeline.csv`.
 
 Running `python run_method_comparison.py` additionally produces:
 
@@ -200,7 +200,7 @@ Note: Proxy series (e.g., HYG/LQD fallback) exist only as contingency logic in d
 ├── Data/                           # Pre-computed CSV results (10 files)
 ├── sensitivity/                    # Sensitivity analyses
 │   ├── sensitivity_delta_k.py      #   ST14: Transform window k sweep
-│   └── sensitivity_matched_pipeline.py  # ST15: Matched-pipeline specificity
+│   └── sensitivity_matched_pipeline.py  # Legacy audit-only analysis; excluded from revised evidence
 ├── run_all.py                      # Unified analysis (Tables 2-5, S1-S3, Figures 1-6)
 ├── run_benchmark.py                # Channel ablation (ST4)
 ├── run_v12_enhancements.py         # Block permutation + extended non-redundancy

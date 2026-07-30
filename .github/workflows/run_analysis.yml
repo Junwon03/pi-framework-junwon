@@ -59,11 +59,6 @@ jobs:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python sensitivity/sensitivity_delta_k.py
 
-      - name: ST15 Matched-pipeline specificity
-        env:
-          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
-        run: python sensitivity/sensitivity_matched_pipeline.py
-
       - name: ST16-17 Method comparison and pseudo-prospective
         run: python run_method_comparison.py
 

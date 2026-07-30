@@ -885,10 +885,13 @@ def main():
         generate_figures()
 
 
-    # ── ST15 + ST16: Sensitivity Analyses (FRED_API_KEY required) ──
+    # ── Transform-window sensitivity analysis (FRED_API_KEY required) ──
     repo_root = os.path.dirname(os.path.abspath(__file__))
     fred_api_key = os.environ.get('FRED_API_KEY', '')
 
+    # The matched-pipeline script is retained in the repository for audit
+    # reproducibility but is intentionally excluded from the revised
+    # manuscript's default evidentiary pipeline.
     sensitivity_jobs = [
         (
             'ST15',
@@ -896,17 +899,11 @@ def main():
             'Transform window sensitivity (k = 1,3,5,10,20)',
             'table_ST15_delta_k_sensitivity.csv',
         ),
-        (
-            'ST16',
-            os.path.join(repo_root, 'sensitivity', 'sensitivity_matched_pipeline.py'),
-            'Matched-pipeline specificity (Dotcom/Repo)',
-            'table_ST16_matched_pipeline.csv',
-        ),
     ]
 
     if any(os.path.exists(script) for _, script, _, _ in sensitivity_jobs):
         print(f'\n\n{"━" * 74}')
-        print('  SENSITIVITY ANALYSES (ST15–ST16)')
+        print('  TRANSFORM-WINDOW SENSITIVITY ANALYSIS')
         print(f'{"━" * 74}')
 
     for label, script, description, output_name in sensitivity_jobs:
@@ -1000,7 +997,7 @@ def main():
             f.write(f'5. SVB out-of-sample: {r5["sep"]:.1f}x separation\n')
         f.write(f'\nFisher combined p-value: {fisher_p:.2e}\n')
         f.write(f'\nSupplementary: S1 (P-limit), S2 (Perturbation), S4 (Non-redundancy)\n')
-        f.write(f'Sensitivity: ST15 (Transform window), ST16 (Matched-pipeline specificity)\n')
+        f.write('Sensitivity: Transform-window analysis retained; matched-pipeline analysis excluded from the revised evidentiary package and retained only for audit reproducibility.\n')
         if args.figures:
             f.write(f'Figures: 6 publication figures (300 dpi PNG + PDF)\n')
 

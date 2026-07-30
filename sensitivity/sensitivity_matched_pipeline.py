@@ -1,7 +1,10 @@
 """
-Supplementary Table 15: Matched-Pipeline Specificity Test
-==========================================================
-Runs Dot-com and Repo cases using IDENTICAL pipeline to 2008:
+Legacy Audit Analysis: Matched-Pipeline Comparison
+===================================================
+This analysis is excluded from the revised manuscript's evidentiary package
+and retained only for audit reproducibility.
+
+Runs Dot-com and Repo cases using an identical pipeline to 2008:
   - TOTBKCR weekly -> daily interpolation + ffill
   - DFF and TEDRATE: |Delta-5d| transforms
   - dt = 1/365 (consistent with manuscript τ₀ = 1/365 for daily data)
