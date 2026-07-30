@@ -24,7 +24,7 @@ python run_variable_substitution.py
 python run_additional_cases.py
 python sensitivity/sensitivity_delta_k.py
 python sensitivity/sensitivity_matched_pipeline.py
-python run_method_comparison.py
+python run_method_comparison.py --include-audit-method-comparison
 python scripts/verify_outputs.py
 ```
 
@@ -36,7 +36,8 @@ python run_v12_enhancements.py                   # Block permutation + non-redun
 python run_v13_enhancements.py                   # Sliding window + additional cases
 python run_variable_substitution.py              # Variable substitution robustness
 python run_additional_cases.py                   # Dot-com, 2019 Repo, Thailand Flood
-python run_method_comparison.py                  # ST16-17: Method benchmark + pseudo-prospective
+python run_method_comparison.py                  # Retrospective rolling-trajectory analysis
+python run_method_comparison.py --include-audit-method-comparison  # Also run legacy ST16 audit comparison
 
 # Sensitivity analyses (require FRED_API_KEY)
 python sensitivity/sensitivity_delta_k.py        # ST14: Transform window k=1,3,5,10,20
@@ -59,8 +60,8 @@ python sensitivity/sensitivity_matched_pipeline.py  # Legacy matched-pipeline an
 | ST10-11 | Additional Cases (Dot-com, Repo, Thailand) | Mixed: 1 weak, 1 negative, 1 non-significant |
 | ST14 | Transform Window Sensitivity | Sep range 16.6–21.1× across k=1..20, all p<0.05 |
 | Legacy | Matched-Pipeline Analysis (audit only) | Excluded from the revised evidentiary package; legacy output retained for reproducibility |
-| ST16 | Method Comparison (Π vs CSD vs PCA) | Π wins 3/5; CSD AC(1) near-unity across all domains |
-| ST17 | Pseudo-Prospective Signal Analysis | 2008: 398-day lead; 3/5 pre-collapse signals |
+| Legacy | Method Comparison (Π vs CSD vs PCA; audit only) | Excluded from the revised evidentiary package; legacy result retained for reproducibility |
+| ST17 | Retrospective Rolling-Trajectory Analysis | First 2σ crossings occurred before the selected event date in 3/5 cases; descriptive, not predictive |
 
 **Note on "Multiplicative wins":** In the full ablation benchmark (ST4), ρ×Ψ×Ω achieves the highest separation in 4/5 cases. Supply Chain is won by the 2-channel Ψ×Ω (34.5× vs 9.2×) because the ρ channel (durable goods PCE) dilutes the signal. This is disclosed in the manuscript.
 
@@ -89,15 +90,17 @@ output/
 
 Additional scripts produce: `benchmark_full.csv`, `benchmark_pivot.csv`, `table_v13_block_permutation.csv`, `table_variable_substitution.csv`, `table_additional_cases.csv`, `table_additional_nonredundancy.csv`, and `table_ST15_delta_k_sensitivity.csv`. The audit-only matched-pipeline script retains its legacy output filename: `table_ST16_matched_pipeline.csv`.
 
-Running `python run_method_comparison.py` additionally produces:
+Running `python run_method_comparison.py` produces:
 
 ```
 output/
 ├── figures/
-│   └── Figure7_pseudo_prospective.png/.pdf
-├── table_ST16_method_comparison.csv
-└── table_ST17_pseudoprospective.csv
+│   └── Figure7_retrospective_trajectory.png/.pdf
+└── table_ST17_retrospective_trajectory.csv
 ```
+
+Adding `--include-audit-method-comparison` also produces the legacy audit output
+`table_ST16_method_comparison.csv`.
 
 ## Cases
 
@@ -165,7 +168,7 @@ S = ρ̃ × Ψ̃ × Ω̃ uses no explicit weights. However, P-limit normalizatio
 - **Additional case results are mixed**: Dot-com (Sep=1.2×, significant but weak), 2019 Repo (Sep=0.7×, crisis < control), Thailand Flood (Sep=3.5× but p=0.49). These are reported honestly as boundary/negative cases. The Dot-com and Repo cases also fail non-redundancy (max|r| = 0.765, 0.866).
 - **Sample size**: N=5 primary cases sufficient for framework validation, not for statistical generalization.
 - **Variable selection**: Requires domain expertise. Selection involved iterative refinement; the current variables are not claimed to be unique or optimal.
-- **Pseudo-prospective, not prospective**: The rolling stress signal analysis (ST17) uses thresholds calibrated from the full control period and does not constitute a true out-of-sample forecast. The 398-day lead in the 2008 case is retrospectively identified.
+- **Retrospective event-relative analysis**: The rolling-trajectory analysis uses thresholds calibrated from the full control period and compares first threshold crossings with predefined event dates. Negative offsets indicate crossings before the selected event date, but they do not constitute prospective validation, forecasting performance, or an independently estimated warning lead.
 
 
 ## Data
@@ -207,7 +210,7 @@ Note: Proxy series (e.g., HYG/LQD fallback) exist only as contingency logic in d
 ├── run_v13_enhancements.py         # Sliding window + additional cases (ST10-12)
 ├── run_variable_substitution.py    # Variable substitution robustness (ST9)
 ├── run_additional_cases.py         # Additional case computation
-├── run_method_comparison.py        # Method benchmark + pseudo-prospective (ST16-17, Figure 7)
+├── run_method_comparison.py        # Retrospective trajectory; optional legacy method-comparison audit
 ├── requirements-lock.txt           # Pinned Python dependency versions
 ├── scripts/verify_outputs.py       # SHA-256 baseline checker (golden vs generated outputs)
 ├── golden/                         # Frozen baseline outputs used in CI reproducibility check

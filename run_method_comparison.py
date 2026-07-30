@@ -1,14 +1,18 @@
 """
-Supplementary Tables 16-17: Method comparison and pseudo-prospective analysis.
+Retrospective rolling-trajectory analysis with a legacy audit comparison.
 
-ST16: Head-to-head comparison of Π (multiplicative) vs CSD (variance, autocorrelation),
-      PCA first component, additive, and maximum formulations.
-ST17: Pseudo-prospective rolling stress signal analysis across all five cases.
+The retrospective analysis evaluates threshold-crossing timing relative to
+predefined event dates. It is not prospective validation or forecasting.
+
+The method-comparison analysis is excluded from the revised manuscript's
+evidentiary package and retained only for audit reproducibility.
 
 Usage:
     python run_method_comparison.py
+    python run_method_comparison.py --include-audit-method-comparison
 """
 
+import argparse
 import pandas as pd
 import numpy as np
 from scipy import stats
@@ -77,7 +81,7 @@ def estimate_dt(df):
 
 
 # ═══════════════════════════════════════════════════════════════
-# ST16: Method comparison
+# Legacy audit analysis: method comparison
 # ═══════════════════════════════════════════════════════════════
 
 def compute_pi(df, dt):
@@ -132,7 +136,7 @@ def compute_max_channel(df, dt):
 
 def run_method_comparison():
     print("=" * 80)
-    print("  ST16: Head-to-Head Method Comparison")
+    print("  LEGACY AUDIT: Head-to-Head Method Comparison")
     print("=" * 80)
 
     results = []
@@ -181,12 +185,12 @@ def run_method_comparison():
 
 
 # ═══════════════════════════════════════════════════════════════
-# ST17: Pseudo-prospective analysis
+# Retrospective rolling-trajectory analysis
 # ═══════════════════════════════════════════════════════════════
 
-def run_pseudo_prospective():
+def run_retrospective_trajectory():
     print("\n" + "=" * 80)
-    print("  ST17: Pseudo-Prospective Signal Analysis")
+    print("  RETROSPECTIVE ROLLING-TRAJECTORY ANALYSIS")
     print("=" * 80)
 
     results = []
@@ -210,39 +214,43 @@ def run_pseudo_prospective():
         first_2s = above_2s[0] if len(above_2s) > 0 else None
         first_3s = above_3s[0] if len(above_3s) > 0 else None
 
-        lead_2s = (collapse - first_2s).days if first_2s and first_2s < collapse else None
-        lead_3s = (collapse - first_3s).days if first_3s and first_3s < collapse else None
+        offset_2s = (first_2s - collapse).days if first_2s else None
+        offset_3s = (first_3s - collapse).days if first_3s else None
 
         results.append({
             'Case': name,
-            'Collapse_date': COLLAPSE_DATES[name],
+            'Event_date': COLLAPSE_DATES[name],
             'Rolling_window': rw,
             'Control_mean_stress': round(ct_mean, 6),
             'Threshold_2σ': round(thresh_2s, 6),
             'Threshold_3σ': round(thresh_3s, 6),
-            'First_2σ': first_2s.date() if first_2s else 'N/A',
-            'First_3σ': first_3s.date() if first_3s else 'N/A',
-            'Lead_2σ_days': lead_2s if lead_2s else 'N/A',
-            'Lead_3σ_days': lead_3s if lead_3s else 'N/A',
-            'Signal_type': 'Pre-collapse' if lead_2s and lead_2s > 0 else
-                           ('Post-collapse' if first_2s else 'No signal'),
+            'First_crossing_2σ': first_2s.date() if first_2s else 'N/A',
+            'First_crossing_3σ': first_3s.date() if first_3s else 'N/A',
+            'Days_relative_to_event_2σ': offset_2s if offset_2s is not None else 'N/A',
+            'Days_relative_to_event_3σ': offset_3s if offset_3s is not None else 'N/A',
+            'Crossing_timing': (
+                'Before event' if offset_2s is not None and offset_2s < 0 else
+                'After event' if offset_2s is not None and offset_2s > 0 else
+                'On event date' if offset_2s == 0 else 'No crossing'
+            ),
         })
 
-        print(f"  {name:20s}: 2σ on {first_2s.date() if first_2s else 'N/A':>12}, "
-              f"lead={lead_2s if lead_2s else 'N/A':>5} days "
-              f"({'Pre' if lead_2s and lead_2s > 0 else 'Post/None'})")
+        offset_text = offset_2s if offset_2s is not None else "N/A"
+        print(f"  {name:20s}: first 2σ crossing "
+              f"{first_2s.date() if first_2s else 'N/A':>12}, "
+              f"offset={offset_text:>5} days relative to event")
 
     df = pd.DataFrame(results)
-    df.to_csv(f"{OUTPUT_DIR}/table_ST17_pseudoprospective.csv", index=False)
-    print(f"\n  → Saved: {OUTPUT_DIR}/table_ST17_pseudoprospective.csv")
+    df.to_csv(f"{OUTPUT_DIR}/table_ST17_retrospective_trajectory.csv", index=False)
+    print(f"\n  → Saved: {OUTPUT_DIR}/table_ST17_retrospective_trajectory.csv")
 
-    # ── Figure 7: 2008 pseudo-prospective ──
-    _plot_2008_prospective()
+    # ── Figure 7: 2008 retrospective trajectory ──
+    _plot_2008_retrospective()
 
     return df
 
 
-def _plot_2008_prospective():
+def _plot_2008_retrospective():
     cr = pd.read_csv(f"{DATA_DIR}/crisis_2008_pi.csv", index_col=0, parse_dates=True)
     ct = pd.read_csv(f"{DATA_DIR}/control_2004_2006_pi.csv", index_col=0, parse_dates=True)
     dt = 1 / 365
@@ -277,7 +285,7 @@ def _plot_2008_prospective():
     ax.axvline(first_2s, color='#e67e22', lw=1, alpha=0.7, ls='-.',
                label=f'First 2σ ({first_2s.strftime("%b %d, %Y")})')
     ax.set_ylabel('Rolling mean stress S̅(t)')
-    ax.set_title('a  Pseudo-prospective stress monitoring: 2008 Financial Crisis',
+    ax.set_title('a  Retrospective stress trajectory: 2008 Financial Crisis',
                  fontweight='bold', loc='left')
     ax.legend(fontsize=7.5, loc='upper left', framealpha=0.9)
     ax.set_xlim(cr.index[0], cr.index[-1])
@@ -304,14 +312,31 @@ def _plot_2008_prospective():
     ax.xaxis.set_major_formatter(DateFormatter('%Y-%m'))
 
     plt.tight_layout()
-    plt.savefig(f"{FIG_DIR}/Figure7_pseudo_prospective.pdf", bbox_inches='tight', dpi=300)
-    plt.savefig(f"{FIG_DIR}/Figure7_pseudo_prospective.png", bbox_inches='tight', dpi=200)
+    plt.savefig(f"{FIG_DIR}/Figure7_retrospective_trajectory.pdf", bbox_inches='tight', dpi=300)
+    plt.savefig(f"{FIG_DIR}/Figure7_retrospective_trajectory.png", bbox_inches='tight', dpi=200)
     plt.close()
-    print(f"  → Saved: Figure7_pseudo_prospective.pdf/.png")
+    print(f"  → Saved: Figure7_retrospective_trajectory.pdf/.png")
 
 
 # ═══════════════════════════════════════════════════════════════
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Run the retrospective rolling-trajectory analysis."
+    )
+    parser.add_argument(
+        "--include-audit-method-comparison",
+        action="store_true",
+        help=(
+            "Also run the legacy method comparison retained only for "
+            "audit reproducibility."
+        ),
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    run_method_comparison()
-    run_pseudo_prospective()
+    args = parse_args()
+    if args.include_audit_method_comparison:
+        run_method_comparison()
+    run_retrospective_trajectory()
     print("\n  Done.")
