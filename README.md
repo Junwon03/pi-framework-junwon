@@ -20,6 +20,8 @@ python run_all.py --all
 python run_benchmark.py
 python run_v12_enhancements.py
 python run_v13_enhancements.py
+python run_nonoverlap_reanalysis.py
+python run_threshold_grid.py
 python run_variable_substitution.py
 python run_additional_cases.py
 python sensitivity/sensitivity_delta_k.py
@@ -34,13 +36,15 @@ Additional scripts:
 python run_benchmark.py                          # Channel ablation (9 methods × 5 domains)
 python run_v12_enhancements.py                   # Block permutation + non-redundancy
 python run_v13_enhancements.py                   # Sliding window + additional cases
+python run_nonoverlap_reanalysis.py              # Crisis-exclusive primary comparison
+python run_threshold_grid.py                     # Full-factorial label-threshold sensitivity
 python run_variable_substitution.py              # Variable substitution sensitivity
 python run_additional_cases.py                   # Dot-com, 2019 Repo, Thailand Flood
 python run_method_comparison.py                  # Retrospective rolling-trajectory analysis
 python run_method_comparison.py --include-audit-method-comparison  # Also run legacy ST16 audit comparison
 
 # Sensitivity analyses (require FRED_API_KEY)
-python sensitivity/sensitivity_delta_k.py        # ST14: Transform window k=1,3,5,10,20
+python sensitivity/sensitivity_delta_k.py        # ST15: Transform window k=1,3,5,10,20
 python sensitivity/sensitivity_matched_pipeline.py  # Legacy matched-pipeline analysis (audit only)
 ```
 
@@ -48,22 +52,23 @@ python sensitivity/sensitivity_matched_pipeline.py  # Legacy matched-pipeline an
 
 | # | Analysis | Result |
 |---|----------|--------|
-| 1 | Cross-Case Retrospective Characterization (5 selected cases) | Cumulative crisis-window Π exceeds control in 5/5; nested-window caveat applies |
-| 2 | Three-Formulation Comparison | Multiplicative formulation is highest in 5/5 among multiplicative, additive, and maximum formulations |
-| 3 | Permutation Test (n=10,000) | 4/5 significant (p < 0.001), Fisher p = 1.66×10⁻¹¹ |
+| 1 | Non-Overlapping Primary Contrast (5 selected cases) | Crisis-exclusive mean stress exceeds the full control-window mean in 5/5 selected cases; retrospective and case-conditional |
+| 2 | Non-Overlapping Three-Formulation Comparison | Multiplicative formulation is highest in 5/5 among multiplicative, additive, and maximum formulations |
+| 3 | Permutation Test (n=10,000) | 4/5 significant (p < 0.001), Fisher p = 1.66×10⁻¹¹ under the specified original windows |
 | 4 | Exploratory Pattern Labels | Ductile / Brittle / Pre-loaded labels assigned descriptively; not validated classes |
-| ST4 | Channel Ablation (9 methods × 5 domains) | ρ×Ψ×Ω highest in 4/5 cases |
+| ST4 | Channel Ablation (9 methods × 5 domains) | Original-window ρ×Ψ×Ω is highest in 4/5 cases; the non-overlap rerun is reported separately |
 | S1 | P-limit Scale-Invariance Diagnostic | Separation is unchanged because the common normalization factors cancel algebraically |
 | S2 | Variable Perturbation | ±3.2% max deviation at 50% noise |
-| S3 | Non-Redundancy | 3/5 pass threshold; Supply Chain max\|r\|=0.952 |
+| S4 | Non-Redundancy | 3/5 pass threshold; Supply Chain max\|r\|=0.952 |
 | ST8 | Block Permutation | 4/5 significant under the specified block-permutation procedure |
 | ST10-11 | Additional Cases (Dot-com, Repo, Thailand) | Mixed: 1 weak, 1 negative, 1 non-significant |
-| ST14 | Transform Window Sensitivity | Sep range 16.6–21.1× across k=1..20, all p<0.05 |
+| ST15 | Transform Window Sensitivity | Non-overlap mean-stress ratios range from 13.9× to 18.1× across k=1..20; all remain above 1 |
+| Grid | Label-Threshold Sensitivity | Baseline-label retention ranges from 60% to 100% across the full threshold grid |
 | Legacy | Matched-Pipeline Analysis (audit only) | Excluded from the revised evidentiary package; legacy output retained for reproducibility |
 | Legacy | Method Comparison (Π vs CSD vs PCA; audit only) | Excluded from the revised evidentiary package; legacy result retained for reproducibility |
-| ST17 | Retrospective Rolling-Trajectory Analysis | First 2σ crossings occurred before the selected event date in 3/5 cases; descriptive, not predictive |
+| ST17 | Retrospective Rolling-Trajectory Sensitivity | Rolling-matched 2σ post-control crossings occur before the selected event in 4/5 cases, while 2σ control exceedances also occur in 4/5; not predictive |
 
-**Comparison scope:** The three-formulation comparison considers only multiplicative, additive, and maximum formulations and places the multiplicative formulation highest in 5/5 cases. The broader ST4 ablation compares nine channel combinations; there, ρ×Ψ×Ω is highest in 4/5 cases. For Supply Chain, Ψ×Ω yields 34.5× versus 9.2× for ρ×Ψ×Ω, indicating that the ρ channel dilutes separation in that selected specification.
+**Comparison scope:** The revised primary comparison uses crisis observations strictly after the control-window end and compares their mean stress with the mean stress of the full prespecified control window. Under this design, the multiplicative formulation is highest in 5/5 cases among the multiplicative, additive, and maximum formulations. The original-window ST4 ablation compares nine channel combinations; there, ρ×Ψ×Ω is highest in 4/5 cases. For Supply Chain, Ψ×Ω yields 34.5× versus 9.2× for ρ×Ψ×Ω in that original-window specification. The non-overlap nine-method ablation is reported separately and interpreted case by case.
 
 ## Output
 
@@ -88,7 +93,7 @@ output/
 └── summary.txt
 ```
 
-Additional scripts produce: `benchmark_full.csv`, `benchmark_pivot.csv`, `table_v13_block_permutation.csv`, `table_variable_substitution.csv`, `table_additional_cases.csv`, `table_additional_nonredundancy.csv`, and `table_ST15_delta_k_sensitivity.csv`. The audit-only matched-pipeline script retains its legacy output filename: `table_ST16_matched_pipeline.csv`.
+Additional scripts produce the existing benchmark, enhancement, variable-substitution, additional-case, and transform-window outputs. The revised comparison package additionally produces `table_nonoverlap_primary.csv`, `table_nonoverlap_formulations.csv`, `table_nonoverlap_ablation.csv`, `table_nonoverlap_variable_substitution.csv`, `table_ST15_nonoverlap_delta_k.csv`, `table_threshold_grid_labels.csv`, and `table_threshold_grid_retention.csv`. The audit-only matched-pipeline script retains its legacy output filename: `table_ST16_matched_pipeline.csv`.
 
 Running `python run_method_comparison.py` produces:
 
@@ -96,7 +101,8 @@ Running `python run_method_comparison.py` produces:
 output/
 ├── figures/
 │   └── Figure7_retrospective_trajectory.png/.pdf
-└── table_ST17_retrospective_trajectory.csv
+├── table_ST17_retrospective_trajectory.csv
+└── table_ST17_matched_threshold_sensitivity.csv
 ```
 
 Adding `--include-audit-method-comparison` also produces the legacy audit output
@@ -104,15 +110,15 @@ Adding `--include-audit-method-comparison` also produces the legacy audit output
 
 ## Cases
 
-| Case | Domain | Variables (ρ / Ψ / Ω) | Source | Sep(Π) | Sep(S̄) |
-|------|--------|------------------------|--------|--------|--------|
-| 2008 Financial | Traditional Finance | DFF \|Δ5d\| / TEDRATE \|Δ5d\| / TOTBKCR | FRED | 18.6× | 10.8× |
-| Terra-Luna | Digital Assets | BTC \|Δ5d\| / LUNA \|Δ1d\| / Cross-Correlation | Yahoo/CoinGecko | 1.9× | 1.1× |
-| Fukushima | Physical Infrastructure | Seismic Energy (USGS) / Nikkei Vol / USD/JPY | USGS/Yahoo | 2.3× | 1.2× |
-| COVID-19 | Pandemic | Cases (JH CSSE) / VIX / HY Spread | JH/Yahoo/FRED | 3,627× | 2,573× |
-| Supply Chain | Global Logistics | PCEDG \|MoM\| / Delivery Time / Freight PPI | FRED | 9.2× | 3.3× |
+| Case | Domain | Variables (ρ / Ψ / Ω) | Source | Full-window Sep(Π) | Full-window Sep(S̄) | Crisis-exclusive Sep(S̄) |
+|------|--------|------------------------|--------|--------------------|---------------------|---------------------------|
+| 2008 Financial | Traditional Finance | DFF \|Δ5d\| / TEDRATE \|Δ5d\| / TOTBKCR | FRED | 18.58× | 10.77× | 15.92× |
+| Terra-Luna | Digital Assets | BTC \|Δ5d\| / LUNC \|Δ1d\| / BTC–ETH–LUNC correlation (60d) | Yahoo Finance | 1.94× | 1.05× | 1.11× |
+| Fukushima | Physical Infrastructure | log10 daily seismic energy / Nikkei volatility (5d) / \|Δ USD/JPY\| | USGS / Yahoo Finance | 2.25× | 1.24× | 1.54× |
+| COVID-19 | Pandemic / Public Health | Global cases (7d average) / VIX / HY spread | JH CSSE / Yahoo Finance / FRED | 3,626.66× | 2,573.20× | 8,856.12× |
+| Supply Chain | Global Logistics | PCEDG \|MoM\| / positive delivery-time index / Freight PPI \|MoM\| | FRED | 9.21× | 3.33× | 4.65× |
 
-Sep(Π) = cumulative separation ratio. Sep(S̄) = time-normalized mean stress ratio, which controls for differing window lengths between crisis and control periods. See "Design Notes" below.
+Full-window Sep(Π) is the original cumulative crisis/control ratio. Full-window Sep(S̄) compares mean stress over the original specified windows. Crisis-exclusive Sep(S̄), the revised primary contrast, compares mean stress strictly after the control-window end with mean stress over the full prespecified control window.
 
 ## Framework
 
@@ -135,13 +141,17 @@ All paper results are generated by `run_all.py`, which uses `dt = 1/365` for dai
 
 Separation ratios are τ₀-invariant: dt cancels algebraically in Π_crisis / Π_control. Verified numerically (dt=1/252, 1/365, 1/100 all yield Sep=18.6× for 2008).
 
-### Nested control design
+### Overlapping control design and revised primary contrast
 
-In 4 of 5 cases the control window is a subset of the crisis window, so Π_crisis > Π_control is partly expected from the longer accumulation window alone. The time-normalized comparison Sep(S̄) reduces this duration effect by comparing mean stress intensity rather than cumulative totals. Sep(S̄) remains above 1.0 in the five selected cases, but the margin is small for Terra-Luna and this descriptive contrast does not remove the nested-window, case-selection, or variable-selection limitations. The permutation procedure evaluates temporal channel alignment within the specified windows; it is not independent prospective validation.
+The original control window is fully contained within the crisis range in 4 of 5 cases. In the 2008 case it overlaps 347 of 574 control observations (60.45%). Consequently, the original cumulative crisis/control ratio is partly affected by duplicated observations and unequal accumulation lengths.
+
+The revised primary estimand removes exact overlap from the crisis side. It compares mean stress in crisis observations strictly after the control-window end with mean stress over the full prespecified control window. The resulting ratios are 15.92×, 1.11×, 1.54×, 8,856.12×, and 4.65× for the five selected cases, respectively.
+
+This removes the direct overlap and cumulative-duration artifact from the primary contrast, but it does not create independently sampled controls or eliminate case-selection, variable-selection, event-date, carryover, and window-design limitations. The existing permutation procedure remains conditional on the original specified windows and evaluates temporal channel alignment; it is not independent prospective validation.
 
 ### COVID-19 floor effect
 
-The extreme separation (3,627×) is partly a floor effect: reported COVID-19 cases were zero for 98% of the selected control period, mechanically making S(t) = 0 under the multiplicative construction. The magnitude is therefore not directly comparable with the other cases and should not be interpreted as a general effect-size ranking.
+The extreme COVID-19 ratios are partly a floor effect: reported cases were zero for 98% of the selected control period, mechanically making S(t) = 0 under the multiplicative construction. This affects both the original cumulative ratio (3,626.66×) and the crisis-exclusive mean-stress ratio (8,856.12×). These magnitudes are not directly comparable with the other cases and should not be interpreted as a general effect-size ranking.
 
 ### Equal weight
 
@@ -160,15 +170,15 @@ S = ρ̃ × Ψ̃ × Ω̃ uses no explicit weights. However, P-limit normalizatio
 
 ## Known Limitations
 
-- **Supply Chain permutation test**: p = 0.26 (not significant). The monthly series contains only 47 observations, limiting statistical power. The 9.2× cumulative contrast is descriptive but not supported by this permutation test.
+- **Supply Chain permutation test**: p = 0.26 (not significant). The monthly series contains only 47 observations, limiting statistical power. Both the 9.21× original cumulative contrast and the 4.65× crisis-exclusive mean-stress contrast are descriptive and are not supported by this permutation test.
 - **Supply Chain non-redundancy**: max|r| = 0.952 between Ψ (delivery time) and Ω (freight PPI). These two channels are highly collinear, violating the non-redundancy assumption. The 2-channel Ψ×Ω outperforms the 3-channel ρ×Ψ×Ω (34.5× vs 9.2×) in this case.
-- **Terra-Luna marginal time-normalized separation**: Sep(S̄) = 1.1× after controlling for window length. While the permutation test is significant (z=5.49), the intensity difference between crisis and control is small.
-- **Exploratory pattern labels**: Ductile, Brittle, and Pre-loaded are retrospective descriptive labels based on selected thresholds. They are not established system classes, and assignments may change under alternative event dates, thresholds, or case specifications.
+- **Terra-Luna marginal separation**: The original full-window mean-stress ratio is 1.0525× and the crisis-exclusive ratio is 1.1149×. Although the original-window permutation test is significant (z=5.49), the observed stress-intensity difference is small and specification-sensitive.
+- **Exploratory pattern labels**: Ductile, Brittle, and Pre-loaded are retrospective descriptive labels, not established system classes. Across the full factorial threshold grid, baseline-label retention ranges from 60% for Supply Chain to 100% for Terra-Luna and COVID-19, demonstrating unequal case-specific sensitivity.
 - **SVB out-of-sample not feasible**: The TED Spread (TEDRATE), a core variable in the 2008 case, is based on LIBOR which was discontinued in June 2023. Only 13 data points were available for the SVB period, producing zero stress values. Substituting an alternative variable would compromise the strict out-of-sample design. This highlights how structural changes in financial benchmarks can invalidate prior calibrations.
 - **Additional case results are mixed**: Dot-com (Sep=1.2×, significant but weak), 2019 Repo (Sep=0.7×, crisis < control), Thailand Flood (Sep=3.5× but p=0.49). These are reported honestly as boundary/negative cases. The Dot-com and Repo cases also fail non-redundancy (max|r| = 0.765, 0.866).
 - **Sample size**: The five primary cases support a proof-of-concept retrospective characterization only. They are insufficient for statistical generalization, universal validation, or estimation of cross-domain performance.
 - **Variable selection**: Variables were selected through domain judgment and iterative, partly post hoc refinement. The specifications are not claimed to be unique or optimal, and inferential results are conditional on these selected variables and windows.
-- **Retrospective event-relative analysis**: The rolling-trajectory analysis uses thresholds calibrated from the full control period and compares first threshold crossings with predefined event dates. Negative offsets indicate crossings before the selected event date, but they do not constitute prospective validation, forecasting performance, or an independently estimated warning lead.
+- **Retrospective event-relative analysis**: The matched-threshold sensitivity applies the same rolling operator to crisis and control series and searches crisis crossings only after the control-window end. At 2σ, pre-event post-control crossings occur in 4 of 5 cases, but control exceedances also occur in 4 of 5 cases, reaching 12.5% for Supply Chain. Because rolling observations are autocorrelated and some control samples are small, these exceedance rates are descriptive rather than calibrated false-alarm probabilities. The analysis does not establish prospective validation, forecasting performance, or an independently estimated warning lead.
 
 
 ## Data
@@ -181,7 +191,6 @@ Raw source data (used to build case datasets and supplementary tests) come from 
 - [USGS Earthquake Hazards](https://earthquake.usgs.gov): Japan M2+ events via FDSN Event API
 - [Johns Hopkins CSSE](https://github.com/CSSEGISandData/COVID-19): Global confirmed COVID-19 cases
 - [Yahoo Finance](https://finance.yahoo.com): BTC-USD, ETH-USD, LUNC-USD, ^N225, JPY=X, ^VIX
-- [CoinGecko](https://www.coingecko.com): TerraUSD (UST) market chart
 
 Note: Proxy series (e.g., HYG/LQD fallback) exist only as contingency logic in data-collection utilities and are not part of the baseline manuscript tables unless explicitly stated.
 
@@ -202,12 +211,14 @@ Note: Proxy series (e.g., HYG/LQD fallback) exist only as contingency logic in d
 │   └── visualize.py                #   Plotting utilities
 ├── Data/                           # Pre-computed CSV results (10 files)
 ├── sensitivity/                    # Sensitivity analyses
-│   ├── sensitivity_delta_k.py      #   ST14: Transform window k sweep
+│   ├── sensitivity_delta_k.py      #   ST15: Transform window k sweep
 │   └── sensitivity_matched_pipeline.py  # Legacy audit-only analysis; excluded from revised evidence
 ├── run_all.py                      # Unified analysis (Tables 2-5, S1-S3, Figures 1-6)
 ├── run_benchmark.py                # Channel ablation (ST4)
 ├── run_v12_enhancements.py         # Block permutation + extended non-redundancy
 ├── run_v13_enhancements.py         # Sliding window + additional cases (ST10-12)
+├── run_nonoverlap_reanalysis.py    # Crisis-exclusive primary comparison and ablations
+├── run_threshold_grid.py           # Full-factorial exploratory-label threshold grid
 ├── run_variable_substitution.py    # Variable substitution sensitivity (ST9)
 ├── run_additional_cases.py         # Additional case computation
 ├── run_method_comparison.py        # Retrospective trajectory; optional legacy method-comparison audit

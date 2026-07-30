@@ -193,12 +193,60 @@ def run_substitution_test():
     # ── Build substitution configurations ──
     def compute_sep_with_sub(crisis_rho_vals, crisis_psi_vals, crisis_omega_vals,
                               control_rho_vals, control_psi_vals, control_omega_vals):
-        """Compute separation from pre-normalized channel values."""
+        """Compute the legacy cumulative separation."""
         crisis_stress = crisis_rho_vals * crisis_psi_vals * crisis_omega_vals
         control_stress = control_rho_vals * control_psi_vals * control_omega_vals
         pi_cr = (crisis_stress * dt).sum()
         pi_ct = (control_stress * dt).sum()
         return pi_cr, pi_ct, pi_cr / pi_ct if pi_ct > 0 else float('inf')
+
+    def compute_nonoverlap_mean_with_sub(
+        crisis_rho_vals,
+        crisis_psi_vals,
+        crisis_omega_vals,
+        control_rho_vals,
+        control_psi_vals,
+        control_omega_vals,
+    ):
+        """Compute the primary non-overlapping mean-stress ratio."""
+        crisis_stress = (
+            crisis_rho_vals * crisis_psi_vals * crisis_omega_vals
+        )
+        control_stress = (
+            control_rho_vals * control_psi_vals * control_omega_vals
+        )
+
+        if not isinstance(crisis_stress, pd.Series):
+            raise TypeError("Crisis stress must retain a datetime index.")
+        if not isinstance(control_stress, pd.Series):
+            raise TypeError("Control stress must retain a datetime index.")
+
+        control_end = control_stress.index.max()
+        crisis_exclusive = crisis_stress.loc[
+            crisis_stress.index > control_end
+        ]
+
+        if crisis_exclusive.empty:
+            raise ValueError(
+                "No crisis observations remain after the control window."
+            )
+        if crisis_exclusive.isna().any() or control_stress.isna().any():
+            raise ValueError(
+                "Missing stress values in the non-overlap comparison."
+            )
+
+        crisis_mean = float(crisis_exclusive.mean())
+        control_mean = float(control_stress.mean())
+
+        if control_mean <= 0:
+            raise ValueError("Control mean stress must be positive.")
+
+        return (
+            crisis_mean,
+            control_mean,
+            crisis_mean / control_mean,
+            len(crisis_exclusive),
+        )
 
     # Baseline (using existing normalized channels)
     pi_cr_b, pi_ct_b, sep_b = compute_sep_with_sub(
@@ -206,6 +254,34 @@ def run_substitution_test():
         control_rho, control_psi, control_omega)
 
     print(f'\n  Baseline (from existing norm channels): Sep = {sep_b:.1f}x')
+
+    mean_cr_b, mean_ct_b, nonoverlap_sep_b, n_exclusive_b = (
+        compute_nonoverlap_mean_with_sub(
+            crisis_rho,
+            crisis_psi,
+            crisis_omega,
+            control_rho,
+            control_psi,
+            control_omega,
+        )
+    )
+    print(
+        f'  Baseline non-overlap mean ratio = '
+        f'{nonoverlap_sep_b:.4f}x'
+    )
+
+    nonoverlap_results = [{
+        'Configuration': 'Baseline (DFF x TEDRATE x TOTBKCR)',
+        'rho': 'DFF',
+        'psi': 'TEDRATE',
+        'omega': 'TOTBKCR',
+        'Mean_crisis_exclusive': round(mean_cr_b, 10),
+        'Mean_control': round(mean_ct_b, 10),
+        'Nonoverlap_mean_ratio': round(nonoverlap_sep_b, 10),
+        'N_crisis_exclusive': n_exclusive_b,
+        'N_control': len(control_df),
+        'Pct_change_from_baseline': '0.0%',
+    }]
 
     results = [{
         'Configuration': 'Baseline (DFF x TEDRATE x TOTBKCR)',
@@ -296,7 +372,19 @@ def run_substitution_test():
         print(f'\n  Testing: {sub["name"]}...')
         pi_cr, pi_ct, sep = compute_sep_with_sub(*sub['cr'], *sub['ct'])
         pct = (sep / sep_b - 1) * 100
+
+        mean_cr, mean_ct, nonoverlap_sep, n_exclusive = (
+            compute_nonoverlap_mean_with_sub(*sub['cr'], *sub['ct'])
+        )
+        nonoverlap_pct = (
+            (nonoverlap_sep / nonoverlap_sep_b - 1) * 100
+        )
+
         print(f'    Sep = {sep:.1f}x ({pct:+.1f}% from baseline)')
+        print(
+            f'    Non-overlap mean ratio = {nonoverlap_sep:.4f}x '
+            f'({nonoverlap_pct:+.1f}% from baseline)'
+        )
 
         results.append({
             'Configuration': sub['name'],
@@ -311,9 +399,32 @@ def run_substitution_test():
             'Pct_change_from_baseline': f'{pct:+.1f}%',
         })
 
+        nonoverlap_results.append({
+            'Configuration': sub['name'],
+            'rho': sub['labels'][0],
+            'psi': sub['labels'][1],
+            'omega': sub['labels'][2],
+            'Mean_crisis_exclusive': round(mean_cr, 10),
+            'Mean_control': round(mean_ct, 10),
+            'Nonoverlap_mean_ratio': round(nonoverlap_sep, 10),
+            'N_crisis_exclusive': n_exclusive,
+            'N_control': len(control_df),
+            'Pct_change_from_baseline': f'{nonoverlap_pct:+.1f}%',
+        })
+
     # ── Save ──
     df = pd.DataFrame(results)
-    df.to_csv(os.path.join(OUT_DIR, 'table_variable_substitution.csv'), index=False)
+    df.to_csv(
+        os.path.join(OUT_DIR, 'table_variable_substitution.csv'),
+        index=False,
+    )
+
+    nonoverlap_df = pd.DataFrame(nonoverlap_results)
+    nonoverlap_path = os.path.join(
+        OUT_DIR,
+        'table_nonoverlap_variable_substitution.csv',
+    )
+    nonoverlap_df.to_csv(nonoverlap_path, index=False)
 
     # ── Summary ──
     print(f'\n  {"="*70}')
@@ -342,7 +453,19 @@ def run_substitution_test():
     else:
         print(f'    RESULT: At least one tested substitution does not retain crisis > control')
 
+    print(f'\n  Non-overlap variable-substitution summary:')
+    print(
+        nonoverlap_df[
+            [
+                'Configuration',
+                'Nonoverlap_mean_ratio',
+                'Pct_change_from_baseline',
+            ]
+        ].to_string(index=False)
+    )
+
     print(f'\n  Saved: table_variable_substitution.csv')
+    print(f'  Saved: table_nonoverlap_variable_substitution.csv')
     return results
 
 

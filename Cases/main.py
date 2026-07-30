@@ -7,7 +7,7 @@
 또는: config.py에 FRED_API_KEY 설정 후 python main.py
 
 파이프라인:
-    1. FRED 데이터 수집 (FEDFUNDS, TEDRATE, TOTBKCR)
+    1. FRED 데이터 수집 (DFF, TEDRATE, TOTBKCR)
     2. 변수 변환 (변화율, 보간)
     3. 안정기 P_limit 산출 (순환논증 방지)
     4. 정규화 → S(t) → Π(t) 누적 적분

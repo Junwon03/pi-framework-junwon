@@ -1,0 +1,6 @@
+Case,Baseline_label,Grid_combinations,Retained_count,Retention_rate,Pre-loaded_count,Ductile_count,Brittle_count
+2008 Financial,Ductile,100,85,0.85,0,85,15
+Terra-Luna,Pre-loaded,100,100,1.0,100,0,0
+Fukushima,Brittle,100,85,0.85,0,15,85
+COVID-19,Brittle,100,100,1.0,0,0,100
+Supply Chain,Ductile,100,60,0.6,0,60,40

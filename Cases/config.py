@@ -33,7 +33,7 @@ CRISIS_END = "2009-03-31"
 # ============================================================
 # 변수 매핑 (Physics-grounded)
 # ============================================================
-# ρ (외부 압력) = FEDFUNDS 변화율 |Δ5일|
+# ρ (외부 압력) = DFF 변화율 |Δ5일|
 #   → F=ma: 시스템 충격은 속도에서 온다
 #   → 밀도행렬 ρ: 외부 환경과의 상호작용
 #
@@ -46,7 +46,7 @@ CRISIS_END = "2009-03-31"
 #   → 구조적 결합은 상태량 (slow-varying)
 
 FRED_SERIES = {
-    'rho': 'FEDFUNDS',      # Federal Funds Rate (일별)
+    'rho': 'DFF',      # Federal Funds Rate (일별)
     'psi': 'TEDRATE',       # TED Spread (일별)
     'omega': 'TOTBKCR',     # Total Bank Credit (월별)
 }

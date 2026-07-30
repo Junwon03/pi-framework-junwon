@@ -10,7 +10,7 @@ Domain: Physical Infrastructure / Natural Disaster
 
 Data Sources:
   - USGS Earthquake Hazards Program (earthquake.usgs.gov)
-  - Yahoo Finance (Nikkei 225, USD/JPY via CoinMarketCap pipeline)
+  - Yahoo Finance (Nikkei 225 and USD/JPY)
 
 의존성: pip install yfinance pandas numpy matplotlib requests
 """

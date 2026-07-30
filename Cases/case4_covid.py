@@ -29,10 +29,10 @@ import requests
 import warnings
 warnings.filterwarnings('ignore')
 
-# COVID financial dislocation: 2020-02-20 ~ 2020-03-23 (S&P bottom)
-# Fed unlimited QE declared 2020-03-23 → recovery phase begins
-# Crisis window limited to financial shock phase (through Apr 2020)
-COLLAPSE_DATE = "2020-03-11"  # WHO declares pandemic
+# COVID financial dislocation: selected event date = 2020-03-23
+# This date is used consistently by the active retrospective analyses.
+# Crisis window remains limited to the acute financial shock phase.
+COLLAPSE_DATE = "2020-03-23"
 DATA_START = "2019-07-01"
 DATA_END = "2020-04-30"
 STABLE_START = "2019-07-01"

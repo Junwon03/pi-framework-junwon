@@ -235,10 +235,17 @@ def run_retrospective_trajectory():
             ),
         })
 
+        first_2s_text = (
+            first_2s.date().isoformat()
+            if first_2s is not None
+            else "N/A"
+        )
         offset_text = offset_2s if offset_2s is not None else "N/A"
-        print(f"  {name:20s}: first 2σ crossing "
-              f"{first_2s.date() if first_2s else 'N/A':>12}, "
-              f"offset={offset_text:>5} days relative to event")
+        print(
+            f"  {name:20s}: first 2σ crossing "
+            f"{first_2s_text:>12}, "
+            f"offset={offset_text:>5} days relative to event"
+        )
 
     df = pd.DataFrame(results)
     df.to_csv(f"{OUTPUT_DIR}/table_ST17_retrospective_trajectory.csv", index=False)
@@ -250,13 +257,245 @@ def run_retrospective_trajectory():
     return df
 
 
+def run_matched_threshold_sensitivity():
+    """Evaluate rolling-matched thresholds and control exceedances.
+
+    The same rolling window and minimum-period rule are applied to the
+    crisis and control stress series. Thresholds are estimated from the
+    rolling-control distribution. Crisis crossings are searched only after
+    the end of the prespecified control window.
+
+    Rolling values immediately after the control end retain prior observations
+    from the causal rolling window. This is a retrospective sensitivity
+    diagnostic, not a prospective prediction test.
+    """
+    print("\n" + "=" * 80)
+    print("  ST17 ROLLING-MATCHED THRESHOLD SENSITIVITY")
+    print("  Control exceedances and post-control crisis crossings")
+    print("=" * 80)
+
+    results = []
+
+    for name, (crisis_file, control_file) in CASES.items():
+        crisis = pd.read_csv(
+            f"{DATA_DIR}/{crisis_file}",
+            index_col=0,
+            parse_dates=True,
+        ).sort_index()
+
+        control = pd.read_csv(
+            f"{DATA_DIR}/{control_file}",
+            index_col=0,
+            parse_dates=True,
+        ).sort_index()
+
+        event_date = pd.Timestamp(COLLAPSE_DATES[name])
+        rolling_window = ROLLING_WINDOWS[name]
+        min_periods = max(2, rolling_window // 2)
+        control_end = control.index.max()
+
+        crisis_rolling = (
+            crisis["stress"]
+            .rolling(
+                rolling_window,
+                min_periods=min_periods,
+            )
+            .mean()
+            .dropna()
+        )
+
+        control_rolling = (
+            control["stress"]
+            .rolling(
+                rolling_window,
+                min_periods=min_periods,
+            )
+            .mean()
+            .dropna()
+        )
+
+        post_control_rolling = crisis_rolling.loc[
+            crisis_rolling.index > control_end
+        ]
+
+        if control_rolling.empty:
+            raise ValueError(
+                f"{name}: no valid rolling-control observations"
+            )
+
+        if post_control_rolling.empty:
+            raise ValueError(
+                f"{name}: no valid crisis rolling observations "
+                "after the control window"
+            )
+
+        control_rolling_mean = float(control_rolling.mean())
+        control_rolling_std = float(control_rolling.std())
+
+        for sigma in (2, 3):
+            threshold = (
+                control_rolling_mean
+                + sigma * control_rolling_std
+            )
+
+            control_exceedances = control_rolling.loc[
+                control_rolling > threshold
+            ]
+
+            post_control_crossings = post_control_rolling.loc[
+                post_control_rolling > threshold
+            ]
+
+            first_control_exceedance = (
+                control_exceedances.index[0]
+                if len(control_exceedances)
+                else None
+            )
+
+            first_post_control_crossing = (
+                post_control_crossings.index[0]
+                if len(post_control_crossings)
+                else None
+            )
+
+            event_offset = (
+                int(
+                    (
+                        first_post_control_crossing
+                        - event_date
+                    ).days
+                )
+                if first_post_control_crossing is not None
+                else None
+            )
+
+            crossing_timing = (
+                "Before event"
+                if event_offset is not None and event_offset < 0
+                else "After event"
+                if event_offset is not None and event_offset > 0
+                else "On event date"
+                if event_offset == 0
+                else "No crossing"
+            )
+
+            exceedance_count = len(control_exceedances)
+            exceedance_rate = (
+                exceedance_count / len(control_rolling)
+            )
+
+            control_interpretation = (
+                "Threshold exceeded in control; crossing is not "
+                "unique to the post-control crisis trajectory"
+                if exceedance_count
+                else "No threshold exceedance observed in the "
+                "prespecified control window"
+            )
+
+            results.append({
+                "Case": name,
+                "Sigma": sigma,
+                "Event_date": event_date.date().isoformat(),
+                "Rolling_window": rolling_window,
+                "Min_periods": min_periods,
+                "Control_start": (
+                    control.index.min().date().isoformat()
+                ),
+                "Control_end": control_end.date().isoformat(),
+                "Post_control_search_start": (
+                    post_control_rolling.index.min()
+                    .date()
+                    .isoformat()
+                ),
+                "Control_rolling_mean": round(
+                    control_rolling_mean,
+                    10,
+                ),
+                "Control_rolling_std": round(
+                    control_rolling_std,
+                    10,
+                ),
+                "Matched_threshold": round(
+                    threshold,
+                    10,
+                ),
+                "Control_valid_rolling_N": len(control_rolling),
+                "Control_exceedance_count": exceedance_count,
+                "Control_exceedance_rate": round(
+                    exceedance_rate,
+                    6,
+                ),
+                "First_control_exceedance": (
+                    first_control_exceedance.date().isoformat()
+                    if first_control_exceedance is not None
+                    else "N/A"
+                ),
+                "Control_exceedance_observed": (
+                    "Yes" if exceedance_count else "No"
+                ),
+                "Control_exceedance_interpretation": (
+                    control_interpretation
+                ),
+                "Post_control_valid_rolling_N": (
+                    len(post_control_rolling)
+                ),
+                "First_post_control_crossing": (
+                    first_post_control_crossing.date().isoformat()
+                    if first_post_control_crossing is not None
+                    else "N/A"
+                ),
+                "Days_relative_to_event": (
+                    event_offset
+                    if event_offset is not None
+                    else "N/A"
+                ),
+                "Crossing_timing": crossing_timing,
+            })
+
+    result = pd.DataFrame(results)
+
+    if len(result) != len(CASES) * 2:
+        raise AssertionError(
+            "Expected two threshold rows per selected case."
+        )
+
+    if result.duplicated(["Case", "Sigma"]).any():
+        raise AssertionError(
+            "Duplicate case/sigma rows found."
+        )
+
+    output_path = (
+        f"{OUTPUT_DIR}/"
+        "table_ST17_matched_threshold_sensitivity.csv"
+    )
+    result.to_csv(output_path, index=False)
+
+    print()
+    print(
+        result[
+            [
+                "Case",
+                "Sigma",
+                "Control_exceedance_count",
+                "Control_exceedance_rate",
+                "First_post_control_crossing",
+                "Days_relative_to_event",
+                "Crossing_timing",
+            ]
+        ].to_string(index=False)
+    )
+
+    print(f"\n  → Saved: {output_path}")
+    return result
+
+
 def _plot_2008_retrospective():
     cr = pd.read_csv(f"{DATA_DIR}/crisis_2008_pi.csv", index_col=0, parse_dates=True)
     ct = pd.read_csv(f"{DATA_DIR}/control_2004_2006_pi.csv", index_col=0, parse_dates=True)
     dt = 1 / 365
 
     cr['pi_expanding'] = (cr['stress'] * dt).cumsum()
-    cr['stress_rolling'] = cr['stress'].rolling(90, min_periods=30).mean()
+    cr['stress_rolling'] = cr['stress'].rolling(90, min_periods=45).mean()
 
     LEHMAN = pd.Timestamp('2008-09-15')
     BEAR_STEARNS = pd.Timestamp('2008-03-14')
@@ -339,4 +578,5 @@ if __name__ == "__main__":
     if args.include_audit_method_comparison:
         run_method_comparison()
     run_retrospective_trajectory()
+    run_matched_threshold_sensitivity()
     print("\n  Done.")

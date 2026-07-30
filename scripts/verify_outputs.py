@@ -35,6 +35,19 @@ EXPECTED_FILES = (
     "output/table_enhanced_cutoff_sensitivity.csv",
     "output/table_v13_sliding_controls.csv",
     "output/table_v13_block_permutation.csv",
+
+    # Primary non-overlapping crisis-control reanalysis
+    "output/table_nonoverlap_primary.csv",
+    "output/table_nonoverlap_formulations.csv",
+    "output/table_nonoverlap_ablation.csv",
+
+    # Extended sensitivity analyses using the revised comparison design
+    "output/table_nonoverlap_variable_substitution.csv",
+    "output/table_ST15_nonoverlap_delta_k.csv",
+    "output/table_threshold_grid_labels.csv",
+    "output/table_threshold_grid_retention.csv",
+    "output/table_ST17_matched_threshold_sensitivity.csv",
+
     "output/table_variable_substitution.csv",
     "output/table_additional_cases.csv",
     "output/table_additional_permutation.csv",

@@ -46,6 +46,12 @@ jobs:
       - name: Run v13 enhancements
         run: python run_v13_enhancements.py
 
+      - name: Run non-overlap reanalysis
+        run: python run_nonoverlap_reanalysis.py
+
+      - name: Run threshold-grid sensitivity
+        run: python run_threshold_grid.py
+
       - name: Run variable substitution
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
@@ -56,7 +62,7 @@ jobs:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python run_additional_cases.py
 
-      - name: ST14 Transform window sensitivity
+      - name: ST15 Transform window sensitivity
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python sensitivity/sensitivity_delta_k.py

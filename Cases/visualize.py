@@ -95,7 +95,7 @@ def plot_pi_trajectory(result: pd.DataFrame,
     ax3 = axes[2]
     
     ax3.plot(result.index, result['rho_norm'], 
-             color='#3498db', linewidth=1.0, alpha=0.8, label='ρ̃ (FEDFUNDS Δ)')
+             color='#3498db', linewidth=1.0, alpha=0.8, label='ρ̃ (DFF Δ)')
     ax3.plot(result.index, result['psi_norm'], 
              color='#e67e22', linewidth=1.0, alpha=0.8, label='Ψ̃ (TEDRATE Δ)')
     ax3.plot(result.index, result['omega_norm'], 
@@ -198,7 +198,7 @@ def print_summary_report(crisis_result: pd.DataFrame,
     
     # P_limit
     print("\n  ┌─ P_limit (안정기 99th percentile) ──────────────┐")
-    print(f"  │  ρ (FEDFUNDS |Δ5d|) : {p_limits['rho']:.6f}          │")
+    print(f"  │  ρ (DFF |Δ5d|) : {p_limits['rho']:.6f}          │")
     print(f"  │  Ψ (TEDRATE |Δ5d|) : {p_limits['psi']:.6f}          │")
     print(f"  │  Ω (TOTBKCR)       : {p_limits['omega']:.2f}             │")
     print("  └──────────────────────────────────────────────────┘")

@@ -71,7 +71,7 @@ def fetch_all_data(start: str = DATA_START, end: str = DATA_END) -> dict:
     
     Returns:
         {
-            'rho_raw': FEDFUNDS 원시,
+            'rho_raw': DFF 원시,
             'psi_raw': TEDRATE 원시,
             'omega_raw': TOTBKCR 원시,
             'rho': |Δ5일| 변화율,
@@ -96,9 +96,9 @@ def fetch_all_data(start: str = DATA_START, end: str = DATA_END) -> dict:
     print("\n[2/3] 변수 변환")
     print("-" * 40)
     
-    # ρ: FEDFUNDS |Δ5일|
+    # ρ: DFF |Δ5일|
     rho = compute_rate_of_change(rho_raw, DELTA_DAYS)
-    print(f"  ρ (FEDFUNDS |Δ{DELTA_DAYS}일|): {rho.dropna().shape[0]} valid points")
+    print(f"  ρ (DFF |Δ{DELTA_DAYS}일|): {rho.dropna().shape[0]} valid points")
     
     # Ψ: TEDRATE |Δ5일|
     psi = compute_rate_of_change(psi_raw, DELTA_DAYS)
@@ -150,7 +150,7 @@ if __name__ == "__main__":
     
     print("\n📋 데이터 샘플 (마지막 10일):")
     sample = pd.DataFrame({
-        'ρ (FEDFUNDS Δ)': data['rho'].tail(10),
+        'ρ (DFF Δ)': data['rho'].tail(10),
         'Ψ (TEDRATE Δ)': data['psi'].tail(10),
         'Ω (TOTBKCR)': data['omega'].tail(10),
     })
