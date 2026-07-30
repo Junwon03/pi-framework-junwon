@@ -432,13 +432,18 @@ def run_svb_oos():
 
 
 # ================================================================
-# SUPPLEMENTARY TEST S1: P-LIMIT SENSITIVITY
+# SUPPLEMENTARY TEST S1: P-LIMIT SCALE-INVARIANCE DIAGNOSTIC
 # ================================================================
 
 def run_plimit_sensitivity():
     print(f'\n\n{"=" * 75}')
-    print('  SUPPLEMENTARY S1: P-limit Sensitivity')
+    print('  SUPPLEMENTARY S1: P-limit Scale-Invariance Diagnostic')
     print('=' * 75)
+    print('  Note: This is an algebraic diagnostic, not independent empirical')
+    print('  robustness evidence. Common P-limit factors cancel in the')
+    print('  crisis/control separation ratio.')
+    print('  P-limits in this diagnostic are estimated from the control period,')
+    print('  whereas the main analysis uses each case\'s predefined stable period.')
 
     percentiles = [95, 97.5, 99, 99.5]
     rows = []
