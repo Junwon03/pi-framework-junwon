@@ -8,14 +8,14 @@
 
 ## Executive Summary
 
-The codebase is **sound and honest**. All reported numerical results are reproducible from the committed CSV data. No evidence of deliberate data massage, selective reporting, or p-hacking was found. Several transparency issues are documented below for correction prior to journal submission.
+The frozen baseline numerical results are reproducible from the committed CSV data. The repository review found no direct evidence of deliberate data alteration, but code inspection alone cannot establish the absence of selective case, variable, window, or analysis choices. Several design and reporting limitations are documented below.
 
-**Verdict on data manipulation:** No evidence found. Key indicators:
+**Scope-limited assessment:** No direct evidence of data alteration was identified in the audited repository state. Indicators:
 
-- Unfavorable results (Supply Chain p=0.26, Repo Sep=0.7×, non-redundancy failures) are **all reported** in the manuscript, not hidden.
-- Transform window k=5 was chosen for its economic interpretation (1 business week), not because it maximizes separation (k=10 yields 21.1× vs k=5's 17.9×).
-- Random seed sensitivity test across 8 seeds shows z-scores are stable (±0.5 variation), confirming results are not seed-dependent.
-- No outlier removal, NaN manipulation, or post-hoc data exclusion was detected in any CSV file.
+- Unfavorable results, including Supply Chain p=0.26, Repo Sep=0.7×, and non-redundancy failures, are retained in the repository and supporting documentation; their final manuscript placement is determined separately in revision.
+- The retained transform window k=5 has a one-business-week interpretation and does not maximize tested separation; k=10 yields 21.1× versus 17.9× for k=5. The audit cannot independently establish the original selection process.
+- Across the 8 examined random seeds, z-scores varied by approximately ±0.5 and the reported significance decisions were unchanged. This is a limited seed-sensitivity check, not proof of seed independence.
+- No outlier-removal operation, NaN manipulation, or post hoc row exclusion was identified in the audited CSV files and inspected pipeline code.
 
 ---
 
@@ -42,11 +42,11 @@ The codebase is **sound and honest**. All reported numerical results are reprodu
 - `case4_covid.py`: `COLLAPSE_DATE = "2020-03-11"` (WHO pandemic declaration)
 - `run_all.py`: `collapse = "2020-03-23"` (S&P 500 bottom)
 
-Table 5 failure mode classification uses 2020-03-23 (from `run_all.py`), yielding Π@collapse = 10.3%.
+Table 5's exploratory pattern assignment uses 2020-03-23 (from `run_all.py`), yielding Π@collapse = 10.3%.
 
 **Fix:** Unify to one date and document the rationale. If using 2020-03-23, update `case4_covid.py` to match and note it represents the financial bottom, not the epidemiological declaration.
 
-#### 1.3 COVID-19 Brittle Classification Margin
+#### 1.3 COVID-19 Exploratory-Label Boundary Sensitivity
 
 **Problem:** COVID-19 Π@collapse/Π_max = 10.3%, and the Explosive/Brittle boundary is exactly 10%. The classification as "Brittle" depends on a 0.3 percentage point margin.
 
@@ -70,7 +70,7 @@ Table 5 failure mode classification uses 2020-03-23 (from `run_all.py`), yieldin
 
 This means Π_crisis includes the control period's stress plus additional crisis stress, so Π_crisis > Π_control is partly guaranteed by construction (longer window).
 
-**Mitigating evidence:** Time-normalized mean stress S̄ = Π/T still shows crisis > control in all cases, confirming the stress *intensity* (not just duration) is higher. The permutation test also controls for this by testing temporal coincidence, not absolute magnitude.
+**Additional diagnostic:** Time-normalized mean stress S̄ = Π/T remains higher in the selected crisis windows than in the selected controls. This reduces the direct duration effect but does not remove the nested-window, case-selection, or variable-selection limitations. The permutation procedure evaluates temporal channel alignment within the specified windows and should not be treated as independent validation of the window design.
 
 | Case | Sep(Π) | Sep(S̄) |
 |------|--------|--------|
@@ -80,13 +80,13 @@ This means Π_crisis includes the control period's stress plus additional crisis
 | COVID-19 | 3,627× | 2,573× |
 | Supply Chain | 9.2× | 3.3× |
 
-**Fix:** Add a sentence in Discussion acknowledging the nested design and noting that time-normalized comparisons confirm the result.
+**Fix:** Acknowledge the nested design and report the time-normalized contrasts as descriptive supplementary evidence rather than confirmation.
 
 #### 2.2 COVID-19 Floor Effect (3,627× Separation)
 
 **Problem:** The extreme separation is mechanically amplified by the multiplicative structure. In the control period, ρ (COVID cases) = 0 for 146/149 days (98%), making S(t) = 0 by construction. This creates a near-zero denominator.
 
-**Fix:** The manuscript should note that the 3,627× figure partly reflects a floor effect (zero-baseline phenomenon) rather than purely discriminative power. The framework correctly detects the transition from zero to crisis, but the magnitude is not directly comparable to other cases.
+**Fix:** Note that the 3,627× figure partly reflects a zero-baseline floor effect. Under the selected variables and multiplicative construction, the transition produces a large ratio, but its magnitude is not directly comparable with the other cases and is not a general measure of discriminative performance.
 
 #### 2.3 Supply Chain Ablation Caveat
 
@@ -100,9 +100,9 @@ The claim counts COVID-19 where the multiplicative advantage is driven by the fl
 
 **Problem:** `run_plimit_sensitivity()` computes P-limits from the *control period raw values* (`ct['rho']`), while the main analysis computes P-limits from a *stable period* defined in each case config. For the 2008 case, stable=[2005-01, 2007-06] vs control=[2004-01, 2006-06] — overlapping but not identical.
 
-**Impact:** S1 is internally consistent (all percentiles use the same baseline), but its P-limits differ from Table 2's P-limits. The test still demonstrates separation invariance across percentiles.
+**Impact:** S1 is internally consistent, but its P-limits differ from the main analysis. The unchanged separation across percentiles is primarily an algebraic scale-invariance property because common normalization factors cancel in the crisis/control ratio; it is not independent empirical robustness evidence.
 
-**Fix:** Add a footnote: "ST1 uses control-period P-limits for internal consistency; main analysis uses the pre-defined stable period."
+**Fix:** State that S1 uses control-period P-limits, while the main analysis uses predefined stable periods, and describe S1 as a scale-invariance diagnostic.
 
 ---
 
@@ -128,7 +128,7 @@ ST15 baseline (k=5) shows Sep=17.9× (N=1045/608), while Table 2 shows Sep=18.6�
 
 ---
 
-## Verified Correct ✅
+## Reproduced Implementation and Baseline Checks
 
 | Check | Result |
 |-------|--------|
@@ -139,15 +139,15 @@ ST15 baseline (k=5) shows Sep=17.9× (N=1045/608), while Table 2 shows Sep=18.6�
 | Permutation test: independent shuffling | ρ, Ψ, Ω shuffled independently ✅ |
 | Permutation test: one-sided p-value | `p = mean(shuffled >= actual)` ✅ |
 | Fisher combined p-value | 1.66×10⁻¹¹ verified ✅ |
-| Failure mode classification thresholds | All 5 cases match manuscript ✅ |
-| Random seed sensitivity | z-scores stable across 8 seeds (±0.5) ✅ |
-| Equal-weight (no hidden weighting) | Confirmed: no coefficient tuning ✅ |
-| No outlier removal or NaN manipulation | 0 NaN, 0 Inf in all CSV files ✅ |
+| Exploratory pattern-label thresholds | Legacy assignments reproduced for all 5 cases; this does not validate the labels as system classes |
+| Random seed sensitivity | Significance decisions unchanged across the 8 examined seeds; scope is limited to those seeds |
+| Equal-weight implementation | No explicit channel coefficients are present in S = ρ̃×Ψ̃×Ω̃; normalization choices still affect implicit scaling |
+| Stored-data integrity checks | 0 NaN and 0 Inf values in the audited CSV files; no exclusion operation identified in the inspected pipeline |
 | dt cancels in separation ratio | Verified algebraically and numerically ✅ |
-| Unfavorable results reported honestly | Supply Chain p=0.26, Repo 0.7×, max|r|=0.952 all disclosed ✅ |
-| No evidence of p-hacking transform window | k=5 chosen for interpretation, not optimality (k=10 is better) ✅ |
-| GitHub Actions pipeline | 8 scripts, 0 errors, 17 CSV + 14 figures reproduced ✅ |
-| Manuscript-code numerical alignment | All main + supplementary tables exact match ✅ |
+| Unfavorable stored results | Supply Chain p=0.26, Repo 0.7×, and max|r|=0.952 are present in the repository and documentation |
+| Transform-window record | k=5 is not the separation-maximizing tested value; repository inspection cannot independently establish the original selection process |
+| Frozen baseline execution | The audited baseline scripts completed and reproduced the recorded CSV/text outputs; the revised CI configuration is tracked separately |
+| Frozen manuscript-baseline alignment | Recorded baseline tables matched the pre-revision outputs; retired analyses and revised interpretations are excluded from the new evidentiary package |
 
 ---
 
@@ -159,21 +159,21 @@ ST15 baseline (k=5) shows Sep=17.9× (N=1045/608), while Table 2 shows Sep=18.6�
 
 Evidence for this conclusion:
 
-1. **No cherry-picking of favorable cases.** Three additional cases (Dot-com, 2019 Repo, Thailand Flood) are included in supplementary material despite unfavorable results (Repo Sep=0.7×, Thailand p=0.49). If results were being cherry-picked, these would have been omitted.
+1. **Unfavorable additional results are retained.** Dot-com, 2019 Repo, and Thailand Flood include weak, negative, or non-significant findings. Their inclusion improves transparency but does not by itself rule out selection effects in the primary five cases.
 
-2. **No optimization of hyperparameters.** The transform window k=5 is not the value that maximizes separation (k=10 gives 21.1× vs k=5's 17.9×). The choice of k=5 = 1 business week has a natural economic rationale.
+2. **The retained transform window is not the tested optimum.** k=10 gives higher separation than k=5. The one-week interpretation provides a rationale for k=5, but the audit cannot independently reconstruct or preregister the original selection process.
 
-3. **No selective reporting.** Supply Chain's non-significant permutation result (p=0.26), its high collinearity (max|r|=0.952), and the Ψ×Ω ablation superiority are all documented.
+3. **Unfavorable results are documented.** Supply Chain's non-significant permutation result (p=0.26), high collinearity (max|r|=0.952), and Ψ×Ω ablation superiority are retained. This improves transparency but does not prove that every analytical choice was reported.
 
-4. **No hidden data exclusion.** All CSV files contain 0 NaN and 0 Inf values. Zero-stress days (e.g., 146/210 in COVID control) arise naturally from the multiplicative structure when ρ=0, not from data cleaning.
+4. **No exclusion operation was identified in the audited pipeline.** The stored CSV files contain 0 NaN and 0 Inf values. In the audited COVID-19 data, zero-stress days occur when ρ=0 under the multiplicative construction rather than through a visible cleaning exclusion.
 
-5. **No seed dependence.** Permutation test conclusions are identical across all 8 tested random seeds.
+5. **Limited seed sensitivity.** Permutation-test significance decisions are unchanged across the 8 examined seeds; broader seed independence is not established.
 
-6. **Transparent about limitations.** The README and manuscript acknowledge sample size (N=5), variable selection requiring domain expertise, SVB out-of-sample infeasibility, and the monthly resolution limitation of Supply Chain.
+6. **Several limitations are explicitly documented.** These include N=5, partly post hoc variable selection, nested controls, SVB infeasibility, and the monthly resolution of Supply Chain.
 
 **Areas where a skeptical reviewer might push back** (not evidence of manipulation, but potential weaknesses):
 
-- The nested control design (control ⊂ crisis) creates a structural bias toward Π_crisis > Π_control, though the magnitude of separation cannot be explained by window length alone.
+- The nested control design structurally favors Π_crisis > Π_control. Mean-stress contrasts remain above 1 in the selected cases, but this does not eliminate the design or selection limitations.
 - COVID-19's extreme separation (3,627×) is partly a floor effect, not purely discriminative power.
-- The "5/5 multiplicative wins" claim includes COVID (floor effect driven) and excludes the Supply Chain ablation nuance.
+- The three-formulation comparison places the multiplicative formulation highest in 5/5 cases, whereas the broader nine-combination ablation places ρ×Ψ×Ω highest in 4/5; COVID is additionally affected by the floor effect.
 - Terra-Luna's time-normalized separation (S̄ ratio = 1.1×) is marginal.

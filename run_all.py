@@ -1,8 +1,8 @@
 """
 Pi Structural Stability Index - Unified Analysis
 =================================================
-5-case cross-domain validation + statistical tests
-+ supplementary robustness tests + publication figures
+5-case cross-case retrospective characterization + statistical tests
++ supplementary sensitivity diagnostics + publication figures
 
 All analyses run from pre-computed CSV data in data/ folder.
 No API keys needed for core analyses.
@@ -102,12 +102,12 @@ def estimate_dt(df):
 
 
 # ================================================================
-# ANALYSIS 1: CROSS-DOMAIN VALIDATION
+# ANALYSIS 1: CROSS-CASE RETROSPECTIVE CHARACTERIZATION
 # ================================================================
 
 def run_cross_domain():
     print('=' * 75)
-    print('  ANALYSIS 1: Cross-Domain Validation (5 Cases)')
+    print('  ANALYSIS 1: Cross-Case Retrospective Characterization (5 Cases)')
     print('=' * 75)
 
     results = []
@@ -278,12 +278,12 @@ def run_permutation_test():
 
 
 # ================================================================
-# ANALYSIS 4: FAILURE MODE CLASSIFICATION
+# ANALYSIS 4: EXPLORATORY PATTERN LABELS
 # ================================================================
 
 def run_failure_modes():
     print(f'\n\n{"=" * 75}')
-    print('  ANALYSIS 4: Failure Mode Classification')
+    print('  ANALYSIS 4: Exploratory Pattern Labels')
     print('=' * 75)
 
     results = []
@@ -729,8 +729,8 @@ def generate_figures():
     fig.savefig(os.path.join(fig_dir, 'Figure5_failure_modes.pdf'))
     plt.close(fig); print('    ✅')
 
-    # ── FIGURE 6: Robustness ──
-    print('  Figure 6: Robustness...')
+    # ── FIGURE 6: Sensitivity Diagnostics ──
+    print('  Figure 6: Sensitivity Diagnostics...')
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7.08, 3.0), constrained_layout=True)
 
     s1_path = os.path.join(OUT_DIR, 'table_S1_plimit_sensitivity.csv')
@@ -811,7 +811,7 @@ def main():
     print()
     print('╔' + '═' * 73 + '╗')
     print('║  Π STRUCTURAL STABILITY INDEX — UNIFIED ANALYSIS                       ║')
-    print('║  Cross-Domain Validation + Statistical Tests                           ║')
+    print('║  Cross-Case Retrospective Characterization + Statistical Tests         ║')
     print('╚' + '═' * 73 + '╝')
     print(f'  Data directory: {DATA_DIR}')
     print(f'  Cases: {len(CASES)}')
@@ -976,26 +976,27 @@ def main():
     print(f'\n\n{"╔" + "═" * 73 + "╗"}')
     print(f'{"║  FINAL SUMMARY":<74}{"║"}')
     print(f'{"╚" + "═" * 73 + "╝"}')
-    print(f'  1. Cross-domain:     {passed}/5 cases Crisis > Control')
-    print(f'  2. Mult vs Add:      Multiplicative wins {mult_wins}/5')
+    print(f'  1. Cumulative contrast: {passed}/5 selected crisis windows > controls')
+    print(f'  2. Three-formulation comparison: multiplicative highest in {mult_wins}/5')
     print(f'  3. Permutation test: {sig_count}/5 significant (p < 0.05)')
-    print(f'  4. Failure modes:    3 classes identified')
+    print(f'  4. Exploratory patterns: three labels assigned')
     if r5:
         print(f'  5. SVB out-of-sample: {r5["sep"]:.1f}x separation')
     print(f'\n  Fisher combined p-value: {fisher_p:.2e}')
-    print(f'  Framework validated: Equal-weight S=ρ×Ψ×Ω across 5 domains')
+    print('  Retrospective characterization completed for five selected cases')
 
     # Summary text
     with open(os.path.join(OUT_DIR, 'summary.txt'), 'w') as f:
-        f.write('Pi Framework — Unified Analysis Results\n')
+        f.write('Pi Framework — Retrospective Cross-Case Results\n')
         f.write('=' * 50 + '\n\n')
-        f.write(f'1. Cross-domain:     {passed}/5 cases Crisis > Control\n')
-        f.write(f'2. Mult vs Add:      Multiplicative wins {mult_wins}/5\n')
+        f.write(f'1. Cumulative contrast: {passed}/5 selected crisis windows > controls\n')
+        f.write(f'2. Three-formulation comparison: multiplicative highest in {mult_wins}/5\n')
         f.write(f'3. Permutation test: {sig_count}/5 significant (p < 0.05)\n')
-        f.write(f'4. Failure modes:    3 classes identified\n')
+        f.write('4. Exploratory patterns: three labels assigned\n')
         if r5:
             f.write(f'5. SVB out-of-sample: {r5["sep"]:.1f}x separation\n')
         f.write(f'\nFisher combined p-value: {fisher_p:.2e}\n')
+        f.write('Interpretation: retrospective characterization of five selected cases; not universal validation or prospective prediction.\n')
         f.write(f'\nSupplementary: S1 (P-limit), S2 (Perturbation), S4 (Non-redundancy)\n')
         f.write('Sensitivity: Transform-window analysis retained; matched-pipeline analysis excluded from the revised evidentiary package and retained only for audit reproducibility.\n')
         if args.figures:

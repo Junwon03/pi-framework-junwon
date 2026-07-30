@@ -332,15 +332,15 @@ def run_substitution_test():
     else:
         max_change = 0
 
-    print(f'\n  Conclusion:')
+    print(f'\n  Descriptive summary:')
     print(f'    All configurations: crisis > control? {"Yes" if all_positive else "No"}')
     print(f'    Maximum deviation from baseline: {max_change:.1f}%')
     print(f'    Baseline matches run_all.py: Sep = {sep_b:.1f}x')
 
     if all_positive:
-        print(f'    PASS: Framework conclusions ROBUST to variable substitution')
+        print(f'    RESULT: Crisis > control retained across the tested substitutions')
     else:
-        print(f'    WARNING: Some configurations show weak separation')
+        print(f'    RESULT: At least one tested substitution does not retain crisis > control')
 
     print(f'\n  Saved: table_variable_substitution.csv')
     return results

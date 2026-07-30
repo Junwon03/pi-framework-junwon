@@ -49,7 +49,7 @@ jobs:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python run_variable_substitution.py
 
-      - name: Run additional validation cases
+      - name: Run additional cases
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python run_additional_cases.py

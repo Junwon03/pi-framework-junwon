@@ -1,6 +1,6 @@
 # Π Structural Stability Index
 
-Cross-domain framework for systemic collapse detection using multiplicative stress integration.
+Cross-case retrospective characterization of systemic stress using multiplicative stress integration.
 
 ## Quick Start
 
@@ -34,7 +34,7 @@ Additional scripts:
 python run_benchmark.py                          # Channel ablation (9 methods × 5 domains)
 python run_v12_enhancements.py                   # Block permutation + non-redundancy
 python run_v13_enhancements.py                   # Sliding window + additional cases
-python run_variable_substitution.py              # Variable substitution robustness
+python run_variable_substitution.py              # Variable substitution sensitivity
 python run_additional_cases.py                   # Dot-com, 2019 Repo, Thailand Flood
 python run_method_comparison.py                  # Retrospective rolling-trajectory analysis
 python run_method_comparison.py --include-audit-method-comparison  # Also run legacy ST16 audit comparison
@@ -48,22 +48,22 @@ python sensitivity/sensitivity_matched_pipeline.py  # Legacy matched-pipeline an
 
 | # | Analysis | Result |
 |---|----------|--------|
-| 1 | Cross-Domain Validation (5 cases) | 5/5 Crisis > Control |
-| 2 | Multiplicative vs Additive vs Max | Multiplicative wins 4/5 (see note below) |
+| 1 | Cross-Case Retrospective Characterization (5 selected cases) | Cumulative crisis-window Π exceeds control in 5/5; nested-window caveat applies |
+| 2 | Three-Formulation Comparison | Multiplicative formulation is highest in 5/5 among multiplicative, additive, and maximum formulations |
 | 3 | Permutation Test (n=10,000) | 4/5 significant (p < 0.001), Fisher p = 1.66×10⁻¹¹ |
-| 4 | Failure Mode Classification | 3 classes: Ductile / Brittle / Pre-loaded |
+| 4 | Exploratory Pattern Labels | Ductile / Brittle / Pre-loaded labels assigned descriptively; not validated classes |
 | ST4 | Channel Ablation (9 methods × 5 domains) | ρ×Ψ×Ω highest in 4/5 cases |
-| S1 | P-limit Sensitivity | Invariant across P95–P99.5 |
+| S1 | P-limit Scale-Invariance Diagnostic | Separation is unchanged because the common normalization factors cancel algebraically |
 | S2 | Variable Perturbation | ±3.2% max deviation at 50% noise |
 | S3 | Non-Redundancy | 3/5 pass threshold; Supply Chain max\|r\|=0.952 |
-| ST8 | Block Permutation | 4/5 robust to temporal structure |
+| ST8 | Block Permutation | 4/5 significant under the specified block-permutation procedure |
 | ST10-11 | Additional Cases (Dot-com, Repo, Thailand) | Mixed: 1 weak, 1 negative, 1 non-significant |
 | ST14 | Transform Window Sensitivity | Sep range 16.6–21.1× across k=1..20, all p<0.05 |
 | Legacy | Matched-Pipeline Analysis (audit only) | Excluded from the revised evidentiary package; legacy output retained for reproducibility |
 | Legacy | Method Comparison (Π vs CSD vs PCA; audit only) | Excluded from the revised evidentiary package; legacy result retained for reproducibility |
 | ST17 | Retrospective Rolling-Trajectory Analysis | First 2σ crossings occurred before the selected event date in 3/5 cases; descriptive, not predictive |
 
-**Note on "Multiplicative wins":** In the full ablation benchmark (ST4), ρ×Ψ×Ω achieves the highest separation in 4/5 cases. Supply Chain is won by the 2-channel Ψ×Ω (34.5× vs 9.2×) because the ρ channel (durable goods PCE) dilutes the signal. This is disclosed in the manuscript.
+**Comparison scope:** The three-formulation comparison considers only multiplicative, additive, and maximum formulations and places the multiplicative formulation highest in 5/5 cases. The broader ST4 ablation compares nine channel combinations; there, ρ×Ψ×Ω is highest in 4/5 cases. For Supply Chain, Ψ×Ω yields 34.5× versus 9.2× for ρ×Ψ×Ω, indicating that the ρ channel dilutes separation in that selected specification.
 
 ## Output
 
@@ -137,11 +137,11 @@ Separation ratios are τ₀-invariant: dt cancels algebraically in Π_crisis / �
 
 ### Nested control design
 
-In 4 of 5 cases the control window is a subset of the crisis window (the pre-crisis portion). This means Π_crisis > Π_control is partly expected from the longer accumulation window alone. The time-normalized comparison (Sep(S̄) column above) controls for this by comparing mean stress *intensity* rather than cumulative totals. All cases maintain Sep(S̄) > 1.0, confirming the stress intensity during crisis genuinely exceeds the pre-crisis baseline. The permutation test provides an additional control by testing temporal coincidence of channels, independent of window length.
+In 4 of 5 cases the control window is a subset of the crisis window, so Π_crisis > Π_control is partly expected from the longer accumulation window alone. The time-normalized comparison Sep(S̄) reduces this duration effect by comparing mean stress intensity rather than cumulative totals. Sep(S̄) remains above 1.0 in the five selected cases, but the margin is small for Terra-Luna and this descriptive contrast does not remove the nested-window, case-selection, or variable-selection limitations. The permutation procedure evaluates temporal channel alignment within the specified windows; it is not independent prospective validation.
 
 ### COVID-19 floor effect
 
-The extreme separation (3,627×) is partly a floor effect: COVID cases were literally 0 for 98% of the control period, making S(t) = 0 by the multiplicative structure. The magnitude is not directly comparable to other cases but correctly reflects the binary nature of the pandemic onset.
+The extreme separation (3,627×) is partly a floor effect: reported COVID-19 cases were zero for 98% of the selected control period, mechanically making S(t) = 0 under the multiplicative construction. The magnitude is therefore not directly comparable with the other cases and should not be interpreted as a general effect-size ranking.
 
 ### Equal weight
 
@@ -160,14 +160,14 @@ S = ρ̃ × Ψ̃ × Ω̃ uses no explicit weights. However, P-limit normalizatio
 
 ## Known Limitations
 
-- **Supply Chain permutation test**: p = 0.26 (not significant). Monthly resolution (n=47) provides insufficient statistical power. The 9.2× crisis-control separation remains substantial but statistically unconfirmed.
+- **Supply Chain permutation test**: p = 0.26 (not significant). The monthly series contains only 47 observations, limiting statistical power. The 9.2× cumulative contrast is descriptive but not supported by this permutation test.
 - **Supply Chain non-redundancy**: max|r| = 0.952 between Ψ (delivery time) and Ω (freight PPI). These two channels are highly collinear, violating the non-redundancy assumption. The 2-channel Ψ×Ω outperforms the 3-channel ρ×Ψ×Ω (34.5× vs 9.2×) in this case.
 - **Terra-Luna marginal time-normalized separation**: Sep(S̄) = 1.1× after controlling for window length. While the permutation test is significant (z=5.49), the intensity difference between crisis and control is small.
-- **COVID-19 boundary classification**: Π@collapse/Π_max = 10.3%, classified as "Brittle" with the Explosive boundary at 10.0%. This 0.3pp margin means the classification is boundary-sensitive.
+- **Exploratory pattern labels**: Ductile, Brittle, and Pre-loaded are retrospective descriptive labels based on selected thresholds. They are not established system classes, and assignments may change under alternative event dates, thresholds, or case specifications.
 - **SVB out-of-sample not feasible**: The TED Spread (TEDRATE), a core variable in the 2008 case, is based on LIBOR which was discontinued in June 2023. Only 13 data points were available for the SVB period, producing zero stress values. Substituting an alternative variable would compromise the strict out-of-sample design. This highlights how structural changes in financial benchmarks can invalidate prior calibrations.
 - **Additional case results are mixed**: Dot-com (Sep=1.2×, significant but weak), 2019 Repo (Sep=0.7×, crisis < control), Thailand Flood (Sep=3.5× but p=0.49). These are reported honestly as boundary/negative cases. The Dot-com and Repo cases also fail non-redundancy (max|r| = 0.765, 0.866).
-- **Sample size**: N=5 primary cases sufficient for framework validation, not for statistical generalization.
-- **Variable selection**: Requires domain expertise. Selection involved iterative refinement; the current variables are not claimed to be unique or optimal.
+- **Sample size**: The five primary cases support a proof-of-concept retrospective characterization only. They are insufficient for statistical generalization, universal validation, or estimation of cross-domain performance.
+- **Variable selection**: Variables were selected through domain judgment and iterative, partly post hoc refinement. The specifications are not claimed to be unique or optimal, and inferential results are conditional on these selected variables and windows.
 - **Retrospective event-relative analysis**: The rolling-trajectory analysis uses thresholds calibrated from the full control period and compares first threshold crossings with predefined event dates. Negative offsets indicate crossings before the selected event date, but they do not constitute prospective validation, forecasting performance, or an independently estimated warning lead.
 
 
@@ -208,7 +208,7 @@ Note: Proxy series (e.g., HYG/LQD fallback) exist only as contingency logic in d
 ├── run_benchmark.py                # Channel ablation (ST4)
 ├── run_v12_enhancements.py         # Block permutation + extended non-redundancy
 ├── run_v13_enhancements.py         # Sliding window + additional cases (ST10-12)
-├── run_variable_substitution.py    # Variable substitution robustness (ST9)
+├── run_variable_substitution.py    # Variable substitution sensitivity (ST9)
 ├── run_additional_cases.py         # Additional case computation
 ├── run_method_comparison.py        # Retrospective trajectory; optional legacy method-comparison audit
 ├── requirements-lock.txt           # Pinned Python dependency versions
