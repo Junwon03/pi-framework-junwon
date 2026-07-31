@@ -19,6 +19,7 @@ output/table_nonoverlap_ablation.csv
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from pathlib import Path
 
@@ -455,13 +456,45 @@ def _block_shuffle(
     return np.concatenate([blocks[index] for index in order])
 
 
+def _stable_mean(values: np.ndarray) -> float:
+    """Return a platform-stable arithmetic mean using compensated summation."""
+    array = np.asarray(values, dtype=float).reshape(-1)
+
+    if array.size == 0:
+        raise ValueError("Cannot calculate a mean from an empty array.")
+
+    return math.fsum(float(value) for value in array) / array.size
+
+
+def _stable_population_std(
+    values: np.ndarray,
+    mean: float,
+) -> float:
+    """Return a platform-stable population standard deviation."""
+    array = np.asarray(values, dtype=float).reshape(-1)
+
+    if array.size == 0:
+        raise ValueError(
+            "Cannot calculate a standard deviation from an empty array."
+        )
+
+    variance = (
+        math.fsum(
+            (float(value) - mean) ** 2
+            for value in array
+        )
+        / array.size
+    )
+    return math.sqrt(variance)
+
+
 def _permutation_summary(
     observed: float,
     null_values: np.ndarray,
 ) -> dict[str, float | int]:
     """Summarize a Monte Carlo null using the finite-sample plus-one rule."""
-    null_mean = float(np.mean(null_values))
-    null_std = float(np.std(null_values, ddof=0))
+    null_mean = _stable_mean(null_values)
+    null_std = _stable_population_std(null_values, null_mean)
     exceedances = int(np.count_nonzero(null_values >= observed))
     p_value = (exceedances + 1) / (len(null_values) + 1)
 
@@ -492,18 +525,18 @@ def build_permutation_table() -> pd.DataFrame:
         crisis, control = load_case(case_name)
         exclusive = exclusive_segment(crisis, control)
         rho, psi, omega = channel_arrays(exclusive)
-        observed = float(np.mean(rho * psi * omega))
+        observed = _stable_mean(rho * psi * omega)
 
         independent_seed = PERMUTATION_SEED_BASE + case_index * 100
         independent_rng = np.random.default_rng(independent_seed)
         independent_null = np.empty(N_PERMUTATIONS, dtype=float)
 
         for iteration in range(N_PERMUTATIONS):
-            independent_null[iteration] = float(np.mean(
+            independent_null[iteration] = _stable_mean(
                 rho[independent_rng.permutation(len(rho))]
                 * psi[independent_rng.permutation(len(psi))]
                 * omega[independent_rng.permutation(len(omega))]
-            ))
+            )
 
         independent_summary = _permutation_summary(
             observed,
@@ -552,11 +585,11 @@ def build_permutation_table() -> pd.DataFrame:
             block_null = np.empty(N_PERMUTATIONS, dtype=float)
 
             for iteration in range(N_PERMUTATIONS):
-                block_null[iteration] = float(np.mean(
+                block_null[iteration] = _stable_mean(
                     _block_shuffle(rho, block_size, block_rng)
                     * _block_shuffle(psi, block_size, block_rng)
                     * _block_shuffle(omega, block_size, block_rng)
-                ))
+                )
 
             block_summary = _permutation_summary(observed, block_null)
             rows.append({
