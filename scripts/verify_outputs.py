@@ -8,6 +8,7 @@ part of the revised evidentiary package or required by this verifier.
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import sys
 from pathlib import Path
@@ -95,6 +96,44 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def print_text_diff(
+    golden_path: Path,
+    actual_path: Path,
+    relative_name: str,
+    max_lines: int = 120,
+) -> None:
+    """Print a bounded unified diff for a mismatched UTF-8 text artifact."""
+    try:
+        golden_lines = golden_path.read_text(
+            encoding="utf-8",
+        ).splitlines(keepends=True)
+        actual_lines = actual_path.read_text(
+            encoding="utf-8",
+        ).splitlines(keepends=True)
+    except UnicodeDecodeError:
+        print("  TEXT_DIFF: unavailable for non-UTF-8 artifact")
+        return
+
+    diff = difflib.unified_diff(
+        golden_lines,
+        actual_lines,
+        fromfile=f"golden/{relative_name}",
+        tofile=f"actual/{relative_name}",
+        n=3,
+    )
+
+    printed = 0
+    for line in diff:
+        if printed >= max_lines:
+            print(f"  ... diff truncated after {max_lines} lines")
+            break
+        print("  " + line.rstrip("\n"))
+        printed += 1
+
+    if printed == 0:
+        print("  TEXT_DIFF: byte-level difference without line-content difference")
+
+
 def main() -> int:
     if not GOLDEN.is_dir():
         print("ERROR: golden/ directory does not exist.")
@@ -117,8 +156,18 @@ def main() -> int:
             failures += 1
             continue
 
-        if sha256(golden_path) != sha256(actual_path):
+        golden_hash = sha256(golden_path)
+        actual_hash = sha256(actual_path)
+
+        if golden_hash != actual_hash:
             print(f"DIFF: {relative_name}")
+            print(f"  GOLDEN_SHA256={golden_hash}")
+            print(f"  ACTUAL_SHA256={actual_hash}")
+            print_text_diff(
+                golden_path,
+                actual_path,
+                relative_name,
+            )
             failures += 1
             continue
 
