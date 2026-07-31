@@ -6,11 +6,11 @@ Pi Structural Stability Index - Unified Analysis
 
 All analyses run from pre-computed CSV data in data/ folder.
 No API keys needed for core analyses.
-SVB out-of-sample test requires FRED_API_KEY.
+Legacy SVB transferability-feasibility audit requires FRED_API_KEY.
 
 Usage:
   python run_all.py              # Core analyses (no API needed)
-  python run_all.py --svb        # Include SVB out-of-sample (needs FRED_API_KEY)
+  python run_all.py --svb        # Include legacy SVB feasibility audit (not revised evidence)
   python run_all.py --figures    # Generate publication figures (needs matplotlib)
   python run_all.py --all        # Everything
 """
@@ -29,8 +29,6 @@ import subprocess
 
 _base = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(_base, 'data')
-if not os.path.exists(DATA_DIR):
-    DATA_DIR = os.path.join(_base, 'Data')
 
 OUT_DIR = os.path.join(_base, 'output')
 FRED_VINTAGE_DATE = os.environ.get("FRED_VINTAGE_DATE", "2026-02-17")
@@ -128,15 +126,19 @@ def run_cross_domain():
             'n_crisis': len(cr), 'n_control': len(ct),
         })
 
-    print(f'\n  {"Case":<18} {"Domain":<22} {"Π_crisis":<12} {"Π_control":<12} {"Sep":<10} {"Pass":<6}')
-    print(f'  {"-" * 78}')
+    print(f'\n  {"Case":<18} {"Domain":<22} {"Π_crisis":<12} {"Π_control":<12} {"Ratio":<10} {"Relation":<18}')
+    print(f'  {"-" * 90}')
 
     for r in results:
-        passed = '✅' if r['separation'] > 1.5 else '❌'
-        print(f'  {r["name"]:<18} {r["domain"]:<22} {r["pi_crisis"]:<12.4f} {r["pi_control"]:<12.4f} {r["separation"]:<10.1f}x {passed:<6}')
+        relation = 'crisis > control' if r['separation'] > 1.0 else 'crisis ≤ control'
+        print(f'  {r["name"]:<18} {r["domain"]:<22} {r["pi_crisis"]:<12.4f} {r["pi_control"]:<12.4f} {r["separation"]:<10.1f}x {relation:<18}')
 
-    passed_count = sum(1 for r in results if r['separation'] > 1.5)
-    print(f'\n  Result: {passed_count}/5 cases PASS (Crisis > Control)')
+    above_one_count = sum(1 for r in results if r['separation'] > 1.0)
+    print(
+        f'\n  Original-window cumulative ratios above 1.0: '
+        f'{above_one_count}/5 selected cases'
+    )
+    print('  Descriptive legacy contrast; overlap and unequal-duration caveats apply.')
 
     return results
 
@@ -333,18 +335,18 @@ def run_failure_modes():
 
 
 # ================================================================
-# ANALYSIS 5: SVB OUT-OF-SAMPLE (optional, needs FRED API)
+# ANALYSIS 5: LEGACY SVB FEASIBILITY AUDIT (optional, needs FRED API)
 # ================================================================
 
 def run_svb_oos():
     print(f'\n\n{"=" * 75}')
-    print('  ANALYSIS 5: Out-of-Sample — SVB 2023 (2008 calibration)')
+    print('  ANALYSIS 5: Legacy SVB Transferability-Feasibility Audit')
     print('  Variables: SAME as 2008 | P-limits: SAME as 2008 | NO re-tuning')
     print('=' * 75)
 
     FRED_API_KEY = os.environ.get('FRED_API_KEY', '')
     if not FRED_API_KEY:
-        print('\n  ⚠ FRED_API_KEY not set. Skipping SVB out-of-sample test.')
+        print('\n  ⚠ FRED_API_KEY not set. Skipping legacy SVB feasibility audit.')
         print('  Set FRED_API_KEY environment variable to enable.')
         return None
 
@@ -422,11 +424,9 @@ def run_svb_oos():
     print(f'    Π (control, 2022-01 ~ 2022-06): {pi_ct:.6f}')
     print(f'    Separation ratio: {sep:.1f}x')
 
-    if sep > 1.5:
-        print(f'\n  ✅ OUT-OF-SAMPLE PASS: {sep:.1f}x separation without re-calibration')
-    else:
-        print(f'\n  ⚠ OUT-OF-SAMPLE RESULT: {sep:.1f}x separation')
-        print(f'    SVB was quickly contained (unlike 2008 systemic collapse)')
+    print(f'\n  Legacy diagnostic ratio: {sep:.1f}x')
+    print('  This is a feasibility audit, not revised out-of-sample evidence.')
+    print('  TEDRATE discontinuation prevents a strict like-for-like SVB validation.')
 
     return {'pi_cr': pi_cr, 'pi_ct': pi_ct, 'sep': sep}
 
@@ -796,7 +796,7 @@ def generate_figures():
 def main():
     parser = argparse.ArgumentParser(description='Pi Framework Unified Analysis')
     parser.add_argument('--svb', action='store_true',
-                        help='Include SVB out-of-sample test (needs FRED_API_KEY)')
+                        help='Include legacy SVB feasibility audit; not revised evidence')
     parser.add_argument('--figures', action='store_true',
                         help='Generate publication figures (needs matplotlib)')
     parser.add_argument('--all', action='store_true',
@@ -963,7 +963,7 @@ def main():
             print(f'    Skipped ({exc})')
 
     # ── Final summary ──
-    passed = sum(1 for r in r1 if r['separation'] > 1.5)
+    above_one = sum(1 for r in r1 if r['separation'] > 1.0)
     mult_wins = sum(1 for r in r2
                     if r['mult']['sep'] >= r['add']['sep']
                     and r['mult']['sep'] >= r['max']['sep'])
@@ -976,12 +976,12 @@ def main():
     print(f'\n\n{"╔" + "═" * 73 + "╗"}')
     print(f'{"║  FINAL SUMMARY":<74}{"║"}')
     print(f'{"╚" + "═" * 73 + "╝"}')
-    print(f'  1. Cumulative contrast: {passed}/5 selected crisis windows > controls')
+    print(f'  1. Original-window cumulative ratio > 1.0: {above_one}/5 selected cases')
     print(f'  2. Three-formulation comparison: multiplicative highest in {mult_wins}/5')
     print(f'  3. Permutation test: {sig_count}/5 significant (p < 0.05)')
     print(f'  4. Exploratory patterns: three labels assigned')
     if r5:
-        print(f'  5. SVB out-of-sample: {r5["sep"]:.1f}x separation')
+        print(f'  5. Legacy SVB feasibility audit: {r5["sep"]:.1f}x (not revised evidence)')
     print(f'\n  Fisher combined p-value: {fisher_p:.2e}')
     print('  Retrospective characterization completed for five selected cases')
 
@@ -989,12 +989,12 @@ def main():
     with open(os.path.join(OUT_DIR, 'summary.txt'), 'w') as f:
         f.write('Pi Framework — Retrospective Cross-Case Results\n')
         f.write('=' * 50 + '\n\n')
-        f.write(f'1. Cumulative contrast: {passed}/5 selected crisis windows > controls\n')
+        f.write(f'1. Original-window cumulative ratio > 1.0: {above_one}/5 selected cases\n')
         f.write(f'2. Three-formulation comparison: multiplicative highest in {mult_wins}/5\n')
         f.write(f'3. Permutation test: {sig_count}/5 significant (p < 0.05)\n')
         f.write('4. Exploratory patterns: three labels assigned\n')
         if r5:
-            f.write(f'5. SVB out-of-sample: {r5["sep"]:.1f}x separation\n')
+            f.write(f'5. Legacy SVB feasibility audit: {r5["sep"]:.1f}x (not revised evidence)\n')
         f.write(f'\nFisher combined p-value: {fisher_p:.2e}\n')
         f.write('Interpretation: retrospective characterization of five selected cases; not universal validation or prospective prediction.\n')
         f.write(f'\nSupplementary: S1 (P-limit), S2 (Perturbation), S4 (Non-redundancy)\n')

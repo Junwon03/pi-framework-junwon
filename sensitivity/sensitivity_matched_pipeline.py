@@ -239,7 +239,7 @@ def main():
     ]
 
     # Compute 2008 baseline dynamically from existing CSV (not hardcoded)
-    data_dir = os.path.join(_repo, 'Data')
+    data_dir = os.path.join(_repo, 'data')
     cr_2008_path = os.path.join(data_dir, 'crisis_2008_pi.csv')
     ct_2008_path = os.path.join(data_dir, 'control_2004_2006_pi.csv')
     if os.path.exists(cr_2008_path) and os.path.exists(ct_2008_path):

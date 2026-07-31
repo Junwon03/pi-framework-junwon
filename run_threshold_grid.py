@@ -69,23 +69,23 @@ VALID_LABELS = {"Pre-loaded", "Ductile", "Brittle"}
 
 
 def locate_data_dir() -> Path:
-    """Locate the directory containing the tracked five-case inputs."""
+    """Validate the canonical lowercase data directory."""
     required = {
         "crisis_2008_pi.csv",
         "control_2004_2006_pi.csv",
         "crisis_terra_luna_pi.csv",
         "control_terra_luna_pi.csv",
     }
+    candidate = BASE / "data"
 
-    for candidate in (BASE / "Data", BASE / "data"):
-        if candidate.is_dir() and all(
-            (candidate / filename).is_file()
-            for filename in required
-        ):
-            return candidate
+    if candidate.is_dir() and all(
+        (candidate / filename).is_file()
+        for filename in required
+    ):
+        return candidate
 
     raise FileNotFoundError(
-        "Could not find the five-case CSV inputs in Data/ or data/."
+        "Could not find the tracked five-case CSV inputs in data/."
     )
 
 

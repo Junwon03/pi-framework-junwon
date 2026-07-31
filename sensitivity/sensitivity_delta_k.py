@@ -1,7 +1,7 @@
 """
 Supplementary Table 15: Transform Window Sensitivity (Delta-k)
 ================================================================
-Tests robustness of 2008 Financial case to alternative diff() windows.
+Evaluates sensitivity of the 2008 Financial case to alternative diff() windows.
 k = 1, 3, 5 (baseline), 10, 20 business days
 
 Fully self-contained: no imports from repo modules.

@@ -34,28 +34,39 @@ CASES = {
         "crisis": "crisis_2008_pi.csv",
         "control": "control_2004_2006_pi.csv",
         "domain": "Traditional Finance",
+        "frequency": "daily",
     },
     "Terra-Luna": {
         "crisis": "crisis_terra_luna_pi.csv",
         "control": "control_terra_luna_pi.csv",
         "domain": "Digital Assets",
+        "frequency": "daily",
     },
     "Fukushima": {
         "crisis": "crisis_fukushima_pi.csv",
         "control": "control_fukushima_pi.csv",
         "domain": "Physical Infrastructure",
+        "frequency": "daily",
     },
     "COVID-19": {
         "crisis": "crisis_covid_pi.csv",
         "control": "control_covid_pi.csv",
         "domain": "Pandemic / Public Health",
+        "frequency": "daily",
     },
     "Supply Chain": {
         "crisis": "crisis_supply_chain_pi.csv",
         "control": "control_supply_chain_pi.csv",
         "domain": "Global Logistics",
+        "frequency": "monthly",
     },
 }
+
+N_PERMUTATIONS = 10_000
+PERMUTATION_SEED_BASE = 20_260_731
+DAILY_BLOCK_SIZES = (5, 10, 20)
+MONTHLY_BLOCK_SIZES = (2, 3, 4)
+
 
 REQUIRED_COLUMNS = (
     "rho_norm",
@@ -101,23 +112,23 @@ ABLATION_METHODS: tuple[
 
 
 def locate_data_dir() -> Path:
-    """Select the directory that contains the tracked five-case inputs."""
+    """Validate the canonical lowercase data directory."""
     required_core = {
         "crisis_2008_pi.csv",
         "control_2004_2006_pi.csv",
         "crisis_terra_luna_pi.csv",
         "control_terra_luna_pi.csv",
     }
+    candidate = BASE / "data"
 
-    for candidate in (BASE / "Data", BASE / "data"):
-        if candidate.is_dir() and all(
-            (candidate / filename).is_file()
-            for filename in required_core
-        ):
-            return candidate
+    if candidate.is_dir() and all(
+        (candidate / filename).is_file()
+        for filename in required_core
+    ):
+        return candidate
 
     raise FileNotFoundError(
-        "Could not find the core five-case CSV files in Data/ or data/."
+        "Could not find the tracked five-case CSV inputs in data/."
     )
 
 
@@ -424,6 +435,174 @@ def build_ablation_table() -> pd.DataFrame:
     return result
 
 
+def _block_shuffle(
+    values: np.ndarray,
+    block_size: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """Shuffle contiguous blocks while preserving order within each block."""
+    n_full_blocks = len(values) // block_size
+    remainder = len(values) % block_size
+
+    blocks = [
+        values[index * block_size:(index + 1) * block_size]
+        for index in range(n_full_blocks)
+    ]
+    if remainder:
+        blocks.append(values[n_full_blocks * block_size:])
+
+    order = rng.permutation(len(blocks))
+    return np.concatenate([blocks[index] for index in order])
+
+
+def _permutation_summary(
+    observed: float,
+    null_values: np.ndarray,
+) -> dict[str, float | int]:
+    """Summarize a Monte Carlo null using the finite-sample plus-one rule."""
+    null_mean = float(np.mean(null_values))
+    null_std = float(np.std(null_values, ddof=0))
+    exceedances = int(np.count_nonzero(null_values >= observed))
+    p_value = (exceedances + 1) / (len(null_values) + 1)
+
+    if null_std > 0:
+        z_score = (observed - null_mean) / null_std
+    else:
+        z_score = float("inf") if observed > null_mean else 0.0
+
+    return {
+        "Null_mean_stress": null_mean,
+        "Null_std_stress": null_std,
+        "z_score": z_score,
+        "Exceedance_count": exceedances,
+        "p_value_plus_one": p_value,
+    }
+
+
+def build_permutation_table() -> pd.DataFrame:
+    """Build crisis-exclusive channel-alignment permutation diagnostics.
+
+    This diagnostic evaluates temporal alignment only within the same
+    crisis-exclusive segment used by the primary comparison. It is not a
+    direct test of the crisis-control difference in mean stress.
+    """
+    rows: list[dict[str, object]] = []
+
+    for case_index, (case_name, info) in enumerate(CASES.items()):
+        crisis, control = load_case(case_name)
+        exclusive = exclusive_segment(crisis, control)
+        rho, psi, omega = channel_arrays(exclusive)
+        observed = float(np.mean(rho * psi * omega))
+
+        independent_seed = PERMUTATION_SEED_BASE + case_index * 100
+        independent_rng = np.random.default_rng(independent_seed)
+        independent_null = np.empty(N_PERMUTATIONS, dtype=float)
+
+        for iteration in range(N_PERMUTATIONS):
+            independent_null[iteration] = float(np.mean(
+                rho[independent_rng.permutation(len(rho))]
+                * psi[independent_rng.permutation(len(psi))]
+                * omega[independent_rng.permutation(len(omega))]
+            ))
+
+        independent_summary = _permutation_summary(
+            observed,
+            independent_null,
+        )
+        rows.append({
+            "Case": case_name,
+            "Frequency": info["frequency"],
+            "Control_end": control.index.max().date().isoformat(),
+            "Exclusive_crisis_start": (
+                exclusive.index.min().date().isoformat()
+            ),
+            "N_crisis_exclusive": len(exclusive),
+            "Method": "Independent shuffle",
+            "Block_size": 1,
+            "N_permutations": N_PERMUTATIONS,
+            "RNG_seed": independent_seed,
+            "Observed_mean_stress": observed,
+            **independent_summary,
+            "Significant_005": (
+                "Yes"
+                if independent_summary["p_value_plus_one"] < 0.05
+                else "No"
+            ),
+        })
+
+        block_sizes = (
+            MONTHLY_BLOCK_SIZES
+            if info["frequency"] == "monthly"
+            else DAILY_BLOCK_SIZES
+        )
+
+        for block_offset, block_size in enumerate(block_sizes, start=1):
+            if block_size >= len(exclusive):
+                raise ValueError(
+                    f"{case_name}: block size {block_size} is not smaller "
+                    f"than exclusive sample N={len(exclusive)}."
+                )
+
+            block_seed = (
+                PERMUTATION_SEED_BASE
+                + case_index * 100
+                + block_offset
+            )
+            block_rng = np.random.default_rng(block_seed)
+            block_null = np.empty(N_PERMUTATIONS, dtype=float)
+
+            for iteration in range(N_PERMUTATIONS):
+                block_null[iteration] = float(np.mean(
+                    _block_shuffle(rho, block_size, block_rng)
+                    * _block_shuffle(psi, block_size, block_rng)
+                    * _block_shuffle(omega, block_size, block_rng)
+                ))
+
+            block_summary = _permutation_summary(observed, block_null)
+            rows.append({
+                "Case": case_name,
+                "Frequency": info["frequency"],
+                "Control_end": control.index.max().date().isoformat(),
+                "Exclusive_crisis_start": (
+                    exclusive.index.min().date().isoformat()
+                ),
+                "N_crisis_exclusive": len(exclusive),
+                "Method": "Block shuffle",
+                "Block_size": block_size,
+                "N_permutations": N_PERMUTATIONS,
+                "RNG_seed": block_seed,
+                "Observed_mean_stress": observed,
+                **block_summary,
+                "Significant_005": (
+                    "Yes"
+                    if block_summary["p_value_plus_one"] < 0.05
+                    else "No"
+                ),
+            })
+
+    result = pd.DataFrame(rows)
+
+    expected_rows = len(CASES) * 4
+    if len(result) != expected_rows:
+        raise AssertionError(
+            f"Expected {expected_rows} permutation rows, found {len(result)}."
+        )
+
+    numeric_columns = [
+        "Observed_mean_stress",
+        "Null_mean_stress",
+        "Null_std_stress",
+        "z_score",
+        "p_value_plus_one",
+    ]
+    result[numeric_columns] = result[numeric_columns].round(10)
+
+    if (result["p_value_plus_one"] <= 0).any():
+        raise AssertionError("Finite Monte Carlo p-values must be positive.")
+
+    return result
+
+
 def verify_cross_table_consistency(
     primary: pd.DataFrame,
     formulations: pd.DataFrame,
@@ -483,6 +662,7 @@ def main() -> int:
     primary = build_primary_table()
     formulations = build_formulation_table()
     ablation = build_ablation_table()
+    permutations = build_permutation_table()
 
     verify_cross_table_consistency(
         primary,
@@ -493,10 +673,12 @@ def main() -> int:
     primary_path = OUT_DIR / "table_nonoverlap_primary.csv"
     formulation_path = OUT_DIR / "table_nonoverlap_formulations.csv"
     ablation_path = OUT_DIR / "table_nonoverlap_ablation.csv"
+    permutation_path = OUT_DIR / "table_nonoverlap_permutation.csv"
 
     primary.to_csv(primary_path, index=False)
     formulations.to_csv(formulation_path, index=False)
     ablation.to_csv(ablation_path, index=False)
+    permutations.to_csv(permutation_path, index=False)
 
     print()
     print(
@@ -511,10 +693,26 @@ def main() -> int:
     )
 
     print()
+    print("  Crisis-exclusive independent permutation summary:")
+    print(
+        permutations.loc[
+            permutations["Method"] == "Independent shuffle",
+            [
+                "Case",
+                "N_crisis_exclusive",
+                "z_score",
+                "p_value_plus_one",
+                "Significant_005",
+            ],
+        ].to_string(index=False)
+    )
+
+    print()
     print("  Cross-table multiplicative consistency: PASSED")
     print(f"  Saved: {primary_path.relative_to(BASE)}")
     print(f"  Saved: {formulation_path.relative_to(BASE)}")
     print(f"  Saved: {ablation_path.relative_to(BASE)}")
+    print(f"  Saved: {permutation_path.relative_to(BASE)}")
 
     return 0
 

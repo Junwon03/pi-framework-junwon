@@ -32,8 +32,6 @@ import time
 
 _base = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(_base, 'data')
-if not os.path.exists(DATA_DIR):
-    DATA_DIR = os.path.join(_base, 'Data')
 
 OUT_DIR = os.path.join(_base, 'output')
 os.makedirs(OUT_DIR, exist_ok=True)
@@ -96,7 +94,7 @@ def align_to_index(series, target_index):
 def run_substitution_test():
     """Run the full variable substitution analysis."""
     print('=' * 75)
-    print('  VARIABLE SUBSTITUTION ROBUSTNESS (2008 Financial)')
+    print('  VARIABLE SUBSTITUTION SENSITIVITY (2008 Financial)')
     print('  Using existing analysis date indices for exact comparability')
     print('=' * 75)
 
@@ -449,9 +447,9 @@ def run_substitution_test():
     print(f'    Baseline matches run_all.py: Sep = {sep_b:.1f}x')
 
     if all_positive:
-        print(f'    RESULT: Crisis > control retained across the tested substitutions')
+        print('    RESULT: Directional crisis > control relation retained across the tested substitutions')
     else:
-        print(f'    RESULT: At least one tested substitution does not retain crisis > control')
+        print('    RESULT: At least one tested substitution does not retain the directional relation')
 
     print(f'\n  Non-overlap variable-substitution summary:')
     print(
@@ -472,7 +470,7 @@ def run_substitution_test():
 def main():
     print()
     print('=' * 75)
-    print('  Pi FRAMEWORK - VARIABLE SUBSTITUTION ROBUSTNESS')
+    print('  Pi FRAMEWORK - VARIABLE SUBSTITUTION SENSITIVITY')
     print('  2008 Financial: Alternative variables from FRED')
     print('  Using existing crisis/control date indices')
     print('=' * 75)

@@ -31,8 +31,6 @@ import sys
 
 _base = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(_base, 'data')
-if not os.path.exists(DATA_DIR):
-    DATA_DIR = os.path.join(_base, 'Data')
 
 OUT_DIR = os.path.join(_base, 'output')
 

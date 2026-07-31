@@ -1,7 +1,7 @@
 Pi Framework — Retrospective Cross-Case Results
 ==================================================
 
-1. Cumulative contrast: 5/5 selected crisis windows > controls
+1. Original-window cumulative ratio > 1.0: 5/5 selected cases
 2. Three-formulation comparison: multiplicative highest in 5/5
 3. Permutation test: 4/5 significant (p < 0.05)
 4. Exploratory patterns: three labels assigned

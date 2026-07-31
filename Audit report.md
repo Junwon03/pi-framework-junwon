@@ -1,7 +1,8 @@
 # Π Framework — Code & Data Integrity Audit Report
 
-**Date:** 2025-02-17
-**Scope:** Full repository review (Cases/, run_*.py, sensitivity/, Data/)
+**Baseline audit date:** 2026-02-17
+**Revision addendum date:** 2026-07-31
+**Scope:** Full repository review (Cases/, run_*.py, sensitivity/, data/)
 **Method:** Automated numerical verification + logic review + manipulation screening
 
 ---
@@ -12,7 +13,7 @@ The frozen baseline numerical results are reproducible from the committed CSV da
 
 **Scope-limited assessment:** No direct evidence of data alteration was identified in the audited repository state. Indicators:
 
-- Unfavorable results, including Supply Chain p=0.26, Repo Sep=0.7×, and non-redundancy failures, are retained in the repository and supporting documentation; their final manuscript placement is determined separately in revision.
+- Unfavorable results, including Supply Chain p=0.26, the legacy cumulative Repo ratio of 0.7×, and non-redundancy failures, are retained in the repository and supporting documentation; revised metric-aligned results are documented in the addendum below.
 - The retained transform window k=5 has a one-business-week interpretation and does not maximize tested separation; k=10 yields 21.1× versus 17.9× for k=5. The audit cannot independently establish the original selection process.
 - Across the 8 examined random seeds, z-scores varied by approximately ±0.5 and the reported significance decisions were unchanged. This is a limited seed-sensitivity check, not proof of seed independence.
 - No outlier-removal operation, NaN manipulation, or post hoc row exclusion was identified in the audited CSV files and inspected pipeline code.
@@ -144,7 +145,7 @@ ST15 baseline (k=5) shows Sep=17.9× (N=1045/608), while Table 2 shows Sep=18.6�
 | Equal-weight implementation | No explicit channel coefficients are present in S = ρ̃×Ψ̃×Ω̃; normalization choices still affect implicit scaling |
 | Stored-data integrity checks | 0 NaN and 0 Inf values in the audited CSV files; no exclusion operation identified in the inspected pipeline |
 | dt cancels in separation ratio | Verified algebraically and numerically ✅ |
-| Unfavorable stored results | Supply Chain p=0.26, Repo 0.7×, and max|r|=0.952 are present in the repository and documentation |
+| Unfavorable stored results | Supply Chain p=0.26, the legacy cumulative Repo ratio of 0.7×, and max|r|=0.952 are present in the repository and documentation |
 | Transform-window record | k=5 is not the separation-maximizing tested value; repository inspection cannot independently establish the original selection process |
 | Frozen baseline execution | The audited baseline scripts completed and reproduced the recorded CSV/text outputs; the revised CI configuration is tracked separately |
 | Frozen manuscript-baseline alignment | Recorded baseline tables matched the pre-revision outputs; retired analyses and revised interpretations are excluded from the new evidentiary package |
@@ -155,7 +156,7 @@ ST15 baseline (k=5) shows Sep=17.9× (N=1045/608), while Table 2 shows Sep=18.6�
 
 **Question:** Is there evidence of intentional data massage or result-favorable manipulation?
 
-**Answer: No.**
+**Scope-limited answer:** No direct evidence of intentional data alteration or result-favorable row manipulation was identified in the audited repository. This finding cannot establish the absence of selective case, variable, transform, window, or reporting choices outside the observable record.
 
 Evidence for this conclusion:
 
@@ -177,3 +178,176 @@ Evidence for this conclusion:
 - COVID-19's extreme separation (3,627×) is partly a floor effect, not purely discriminative power.
 - The three-formulation comparison places the multiplicative formulation highest in 5/5 cases, whereas the broader nine-combination ablation places ρ×Ψ×Ω highest in 4/5; COVID is additionally affected by the floor effect.
 - Terra-Luna's time-normalized separation (S̄ ratio = 1.1×) is marginal.
+
+---
+
+## Revision Addendum — 2026-07-31
+
+### A. Status and scope
+
+This addendum records the post-review revision state. It does not convert the
+retrospective analysis into a preregistered, prospective, or universally
+validated design. The revised evidentiary claim is limited to retrospective
+characterization of five selected cases under documented specifications.
+
+The analysis decisions were fixed in `revision_analysis_decisions.md` before
+the final implementation and are explicitly labeled as a post-review decision
+record rather than a preregistration.
+
+### B. Primary overlap correction
+
+The revised primary estimand is the mean stress in crisis observations strictly
+after the prespecified control-window end divided by the mean stress in the
+full prespecified control window.
+
+| Case | Crisis-exclusive mean-stress ratio |
+|------|------------------------------------:|
+| 2008 Financial | 15.91699× |
+| Terra-Luna | 1.11491× |
+| Fukushima | 1.53812× |
+| COVID-19 | 8,856.11938× |
+| Supply Chain | 4.65417× |
+
+This removes exact crisis-side overlap and the direct cumulative-duration
+artifact. It does not remove case selection, variable selection, event-date
+selection, temporal carryover, or control-window design limitations.
+
+The original cumulative and full-window mean ratios remain archived as legacy
+descriptive quantities rather than being deleted.
+
+### C. Crisis-exclusive permutation diagnostics
+
+`run_nonoverlap_reanalysis.py` now generates
+`table_nonoverlap_permutation.csv` using the same crisis-exclusive segments as
+the revised primary comparison.
+
+The statistic is the mean of the aligned product
+`rho_norm × psi_norm × omega_norm` within the crisis-exclusive segment.
+Channels are shuffled independently. The analysis therefore evaluates temporal
+channel alignment; it is not a direct permutation test of the crisis-control
+mean-stress ratio.
+
+Fixed settings are:
+
+- 10,000 permutations
+- deterministic local random-number generators with recorded seeds
+- finite Monte Carlo p-values `(b + 1) / (m + 1)`
+- daily block sizes 5, 10, and 20
+- monthly block sizes 2, 3, and 4
+- all five selected cases and all specified block sizes reported
+
+Independent-shuffle results are significant in 4 of 5 cases. Supply Chain is
+non-significant (`p = 0.1921`). Block-shuffle evidence persists across all
+tested block sizes for 2008, Terra-Luna, and Fukushima. For COVID-19, block
+size 5 remains significant, while block sizes 10 and 20 do not. Supply Chain
+remains non-significant across all tested monthly block sizes.
+
+These block results are sensitivity diagnostics, not a complete
+autocorrelation-corrected inferential design.
+
+### D. Additional-case metric alignment
+
+`run_additional_metric_alignment.py` reports both the legacy cumulative ratio
+and the revised primary mean-stress ratio for all three additional cases.
+
+| Additional case | Legacy cumulative ratio | Primary mean-stress ratio |
+|-----------------|------------------------:|--------------------------:|
+| Dot-com | 1.19716× | 0.90374× |
+| 2019 Repo | 0.70290× | 1.20327× |
+| Thailand Floods | 3.52932× | 3.72539× |
+
+Dot-com and Repo reverse direction when unequal cumulative window length is
+removed. Both metrics are retained. No case is classified by choosing whichever
+metric produces a preferred direction. These cases are exploratory boundary
+comparisons, not formal negative controls or independent validation episodes.
+
+### E. Specification provenance and sensitivity
+
+`run_specification_provenance.py` generates a 15-row provenance table covering
+five cases and three channels per case. It documents the selected variables,
+transformations, configured sources, calibration periods, tested alternatives,
+frozen inputs, and known raw-source archival limitations.
+
+The specifications are recorded as retrospective, domain-informed, and
+iteratively developed. They are not represented as preregistered or uniquely
+optimal.
+
+The 2008 variable-substitution analysis preserves the direction of the selected
+contrast across the tested alternatives, but its magnitude varies materially.
+This is specification sensitivity rather than universal robustness.
+
+The statement that the multiplicative formulation ranks highest in 5 of 5
+selected cases applies only to the comparison among the three three-channel
+formulations: product, sum, and maximum. It does not mean that the product
+outperforms every single- or dual-channel ablation. Supply Chain retains the
+`psi × omega` superiority as a visible boundary condition.
+
+### F. Reproducibility corrections
+
+The revision corrected the following repository-level issues:
+
+- canonicalized the tracked primary input path from `Data/` to lowercase
+  `data/` for Linux case-sensitive compatibility
+- added all 10 primary inputs and 6 additional-case inputs to active golden
+  verification
+- replaced the root verifier with a compatibility entry point to
+  `scripts/verify_outputs.py`
+- added the non-overlap permutation, additional metric-alignment, and
+  specification-provenance outputs to the golden baseline
+- added generation of the two new standalone outputs to GitHub Actions before
+  verification
+- retained ST16 outputs as explicit legacy audit artifacts excluded from active
+  evidence
+
+The active verifier checks 50 deterministic files:
+
+- 34 generated CSV/TXT outputs
+- 16 frozen primary and additional-case input CSVs
+
+Both verifier entry points returned:
+
+`expected=50 matched=50 failed=0`
+
+The complete local pipeline matching the active GitHub Actions sequence passed
+15 of 15 execution steps, including compilation, all active analyses, both
+verifiers, and the Git whitespace check.
+
+### G. Remaining provenance limitations
+
+The committed repository freezes processed case CSVs and deterministic outputs,
+but it does not contain a complete immutable archive of every original API
+response or provider-side data version used during initial construction.
+
+In particular:
+
+- the ST15 reconstruction independently fetches FRED data and uses wider index
+  alignment than the frozen 2008 primary table
+- the COVID processed input is frozen, but the originally executed choice
+  between the primary credit-spread series and fallback branch is not preserved
+  as a separate raw-response artifact
+- Yahoo Finance, USGS, Johns Hopkins, and original FRED responses are not all
+  stored as raw source snapshots with provider metadata
+
+Consequently, the repository supports deterministic reproduction from the
+frozen processed inputs and documented reconstruction scripts, but not complete
+forensic reconstruction of every upstream provider response.
+
+### H. Updated integrity assessment
+
+The revision retains unfavorable and qualification-sensitive findings,
+including:
+
+- Supply Chain non-significant permutation results
+- loss of COVID-19 significance under longer block shuffles
+- Supply Chain channel collinearity and `psi × omega` superiority
+- Terra-Luna's small mean-stress contrast
+- Dot-com and Repo direction reversals under metric alignment
+- sensitivity of the 2008 magnitude to variable substitutions
+- unequal exploratory-label retention across the threshold grid
+- the absence of prospective or many-episode validation
+
+No exclusion, seed, block size, case, or metric was changed after inspection to
+remove these findings. This increases auditability and reduces the risk of
+selective reporting. It does not prove that all original research choices were
+free from post hoc judgment, nor does it establish absence of selection effects
+outside the repository record.
