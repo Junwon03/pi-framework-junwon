@@ -1,10 +1,10 @@
-"""Non-overlapping crisis-control reanalysis for the five selected cases.
+"""Post-control versus control reanalysis for the five selected cases.
 
-Primary estimand
------------------
-Mean stress in the crisis-exclusive segment, defined as observations strictly
-after the end of the prespecified control window, divided by mean stress in
-the full prespecified control window.
+Primary descriptive contrast
+----------------------------
+Mean stress in the post-control segment, defined as observations strictly
+after the observed control-window end, divided by mean stress in the full
+control window.
 
 The stored channel normalization and P-limits are not recalibrated here.
 This script changes only the evaluation window, preserving the original
@@ -137,7 +137,7 @@ DATA_DIR = locate_data_dir()
 
 
 def estimate_dt(frame: pd.DataFrame) -> float:
-    """Mirror the existing daily/monthly time-step convention."""
+    """Return the repository fixed per-observation weight convention."""
     if len(frame) <= 1:
         return 1.0 / 365.0
 
@@ -208,16 +208,16 @@ def load_case(case_name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     return crisis, control
 
 
-def exclusive_segment(
+def post_control_segment(
     crisis: pd.DataFrame,
     control: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Return crisis observations strictly after the control end date."""
+    """Return observations strictly after the control-window end date."""
     segment = crisis.loc[crisis.index > control.index.max()].copy()
 
     if segment.empty:
         raise ValueError(
-            "No crisis-exclusive observations remain after control end."
+            "No post-control observations remain after the control-window end."
         )
 
     return segment
@@ -235,16 +235,16 @@ def channel_arrays(
 
 
 def mean_ratio(
-    crisis_exclusive: pd.DataFrame,
+    post_control: pd.DataFrame,
     control: pd.DataFrame,
     stress_function: Callable[
         [np.ndarray, np.ndarray, np.ndarray],
         np.ndarray,
     ],
 ) -> tuple[float, float, float]:
-    """Calculate exclusive-crisis mean, control mean, and their ratio."""
+    """Calculate post-control mean, control mean, and their ratio."""
     crisis_stress = np.asarray(
-        stress_function(*channel_arrays(crisis_exclusive)),
+        stress_function(*channel_arrays(post_control)),
         dtype=float,
     )
     control_stress = np.asarray(
@@ -265,12 +265,12 @@ def mean_ratio(
 
 
 def build_primary_table() -> pd.DataFrame:
-    """Build window diagnostics and the primary non-overlap comparison."""
+    """Build diagnostics for the sequential post-control/control contrast."""
     rows: list[dict[str, object]] = []
 
     for case_name, info in CASES.items():
         crisis, control = load_case(case_name)
-        exclusive = exclusive_segment(crisis, control)
+        post_control = post_control_segment(crisis, control)
 
         overlap = crisis.index.intersection(control.index)
         contained = (
@@ -290,7 +290,7 @@ def build_primary_table() -> pd.DataFrame:
 
         full_crisis_mean = float(crisis["stress"].mean())
         control_mean = float(control["stress"].mean())
-        exclusive_mean = float(exclusive["stress"].mean())
+        post_control_mean = float(post_control["stress"].mean())
 
         rows.append({
             "Case": case_name,
@@ -299,42 +299,42 @@ def build_primary_table() -> pd.DataFrame:
             "Crisis_end": crisis.index.max().date().isoformat(),
             "Control_start": control.index.min().date().isoformat(),
             "Control_end": control.index.max().date().isoformat(),
-            "Exclusive_crisis_start": (
-                exclusive.index.min().date().isoformat()
+            "Post_control_start": (
+                post_control.index.min().date().isoformat()
             ),
-            "Exclusive_crisis_end": (
-                exclusive.index.max().date().isoformat()
+            "Post_control_end": (
+                post_control.index.max().date().isoformat()
             ),
             "N_crisis_full": len(crisis),
             "N_control": len(control),
             "N_exact_overlap": len(overlap),
-            "N_crisis_exclusive": len(exclusive),
+            "N_post_control": len(post_control),
             "Control_contained_in_crisis_range": (
                 "Yes" if contained else "No"
             ),
             "Control_overlap_fraction": (
                 len(overlap) / len(control)
             ),
-            "Cumulative_ratio_full_windows": (
+            "Legacy_full_window_cumulative_ratio": (
                 cumulative_crisis / cumulative_control
             ),
-            "Mean_ratio_full_windows": (
+            "Legacy_full_window_mean_ratio": (
                 full_crisis_mean / control_mean
             ),
             "Mean_stress_control": control_mean,
-            "Mean_stress_crisis_exclusive": exclusive_mean,
-            "Nonoverlap_mean_ratio": exclusive_mean / control_mean,
+            "Mean_stress_post_control": post_control_mean,
+            "Post_control_to_control_mean_ratio": post_control_mean / control_mean,
         })
 
     result = pd.DataFrame(rows)
 
     numeric_columns = [
         "Control_overlap_fraction",
-        "Cumulative_ratio_full_windows",
-        "Mean_ratio_full_windows",
+        "Legacy_full_window_cumulative_ratio",
+        "Legacy_full_window_mean_ratio",
         "Mean_stress_control",
-        "Mean_stress_crisis_exclusive",
-        "Nonoverlap_mean_ratio",
+        "Mean_stress_post_control",
+        "Post_control_to_control_mean_ratio",
     ]
     result[numeric_columns] = result[numeric_columns].round(10)
 
@@ -347,13 +347,13 @@ def build_formulation_table() -> pd.DataFrame:
 
     for case_name in CASES:
         crisis, control = load_case(case_name)
-        exclusive = exclusive_segment(crisis, control)
+        post_control = post_control_segment(crisis, control)
 
         case_rows: list[dict[str, object]] = []
 
         for formulation_name, stress_function in FORMULATIONS:
             crisis_mean, control_mean, ratio = mean_ratio(
-                exclusive,
+                post_control,
                 control,
                 stress_function,
             )
@@ -361,16 +361,16 @@ def build_formulation_table() -> pd.DataFrame:
             case_rows.append({
                 "Case": case_name,
                 "Formulation": formulation_name,
-                "N_crisis_exclusive": len(exclusive),
+                "N_post_control": len(post_control),
                 "N_control": len(control),
-                "Mean_crisis_exclusive": crisis_mean,
+                "Mean_post_control": crisis_mean,
                 "Mean_control": control_mean,
-                "Nonoverlap_mean_ratio": ratio,
+                "Post_control_to_control_mean_ratio": ratio,
             })
 
         case_frame = pd.DataFrame(case_rows)
         case_frame["Rank_within_case"] = (
-            case_frame["Nonoverlap_mean_ratio"]
+            case_frame["Post_control_to_control_mean_ratio"]
             .rank(method="min", ascending=False)
             .astype(int)
         )
@@ -379,9 +379,9 @@ def build_formulation_table() -> pd.DataFrame:
     result = pd.DataFrame(rows)
 
     numeric_columns = [
-        "Mean_crisis_exclusive",
+        "Mean_post_control",
         "Mean_control",
-        "Nonoverlap_mean_ratio",
+        "Post_control_to_control_mean_ratio",
     ]
     result[numeric_columns] = result[numeric_columns].round(10)
 
@@ -394,13 +394,13 @@ def build_ablation_table() -> pd.DataFrame:
 
     for case_name in CASES:
         crisis, control = load_case(case_name)
-        exclusive = exclusive_segment(crisis, control)
+        post_control = post_control_segment(crisis, control)
 
         case_rows: list[dict[str, object]] = []
 
         for method_name, level, stress_function in ABLATION_METHODS:
             crisis_mean, control_mean, ratio = mean_ratio(
-                exclusive,
+                post_control,
                 control,
                 stress_function,
             )
@@ -409,16 +409,16 @@ def build_ablation_table() -> pd.DataFrame:
                 "Case": case_name,
                 "Method": method_name,
                 "Level": level,
-                "N_crisis_exclusive": len(exclusive),
+                "N_post_control": len(post_control),
                 "N_control": len(control),
-                "Mean_crisis_exclusive": crisis_mean,
+                "Mean_post_control": crisis_mean,
                 "Mean_control": control_mean,
-                "Nonoverlap_mean_ratio": ratio,
+                "Post_control_to_control_mean_ratio": ratio,
             })
 
         case_frame = pd.DataFrame(case_rows)
         case_frame["Rank_within_case"] = (
-            case_frame["Nonoverlap_mean_ratio"]
+            case_frame["Post_control_to_control_mean_ratio"]
             .rank(method="min", ascending=False)
             .astype(int)
         )
@@ -427,9 +427,9 @@ def build_ablation_table() -> pd.DataFrame:
     result = pd.DataFrame(rows)
 
     numeric_columns = [
-        "Mean_crisis_exclusive",
+        "Mean_post_control",
         "Mean_control",
-        "Nonoverlap_mean_ratio",
+        "Post_control_to_control_mean_ratio",
     ]
     result[numeric_columns] = result[numeric_columns].round(10)
 
@@ -513,18 +513,18 @@ def _permutation_summary(
 
 
 def build_permutation_table() -> pd.DataFrame:
-    """Build crisis-exclusive channel-alignment permutation diagnostics.
+    """Build post-control channel-alignment permutation diagnostics.
 
     This diagnostic evaluates temporal alignment only within the same
-    crisis-exclusive segment used by the primary comparison. It is not a
-    direct test of the crisis-control difference in mean stress.
+    post-control segment used by the primary contrast. It is not a
+    direct test of the post-control/control difference in mean stress.
     """
     rows: list[dict[str, object]] = []
 
     for case_index, (case_name, info) in enumerate(CASES.items()):
         crisis, control = load_case(case_name)
-        exclusive = exclusive_segment(crisis, control)
-        rho, psi, omega = channel_arrays(exclusive)
+        post_control = post_control_segment(crisis, control)
+        rho, psi, omega = channel_arrays(post_control)
         observed = _stable_mean(rho * psi * omega)
 
         independent_seed = PERMUTATION_SEED_BASE + case_index * 100
@@ -546,21 +546,16 @@ def build_permutation_table() -> pd.DataFrame:
             "Case": case_name,
             "Frequency": info["frequency"],
             "Control_end": control.index.max().date().isoformat(),
-            "Exclusive_crisis_start": (
-                exclusive.index.min().date().isoformat()
+            "Post_control_start": (
+                post_control.index.min().date().isoformat()
             ),
-            "N_crisis_exclusive": len(exclusive),
+            "N_post_control": len(post_control),
             "Method": "Independent shuffle",
-            "Block_size": 1,
+            "Block_size_observations": 1,
             "N_permutations": N_PERMUTATIONS,
             "RNG_seed": independent_seed,
             "Observed_mean_stress": observed,
             **independent_summary,
-            "Significant_005": (
-                "Yes"
-                if independent_summary["p_value_plus_one"] < 0.05
-                else "No"
-            ),
         })
 
         block_sizes = (
@@ -570,10 +565,10 @@ def build_permutation_table() -> pd.DataFrame:
         )
 
         for block_offset, block_size in enumerate(block_sizes, start=1):
-            if block_size >= len(exclusive):
+            if block_size >= len(post_control):
                 raise ValueError(
                     f"{case_name}: block size {block_size} is not smaller "
-                    f"than exclusive sample N={len(exclusive)}."
+                    f"than post-control sample N={len(post_control)}."
                 )
 
             block_seed = (
@@ -596,21 +591,16 @@ def build_permutation_table() -> pd.DataFrame:
                 "Case": case_name,
                 "Frequency": info["frequency"],
                 "Control_end": control.index.max().date().isoformat(),
-                "Exclusive_crisis_start": (
-                    exclusive.index.min().date().isoformat()
+                "Post_control_start": (
+                    post_control.index.min().date().isoformat()
                 ),
-                "N_crisis_exclusive": len(exclusive),
+                "N_post_control": len(post_control),
                 "Method": "Block shuffle",
-                "Block_size": block_size,
+                "Block_size_observations": block_size,
                 "N_permutations": N_PERMUTATIONS,
                 "RNG_seed": block_seed,
                 "Observed_mean_stress": observed,
                 **block_summary,
-                "Significant_005": (
-                    "Yes"
-                    if block_summary["p_value_plus_one"] < 0.05
-                    else "No"
-                ),
             })
 
     result = pd.DataFrame(rows)
@@ -642,20 +632,20 @@ def verify_cross_table_consistency(
     ablation: pd.DataFrame,
 ) -> None:
     """Verify that multiplicative results agree across all three tables."""
-    primary_ratios = primary.set_index("Case")["Nonoverlap_mean_ratio"]
+    primary_ratios = primary.set_index("Case")["Post_control_to_control_mean_ratio"]
 
     formulation_ratios = (
         formulations.loc[
             formulations["Formulation"] == "Multiplicative"
         ]
-        .set_index("Case")["Nonoverlap_mean_ratio"]
+        .set_index("Case")["Post_control_to_control_mean_ratio"]
     )
 
     ablation_ratios = (
         ablation.loc[
             ablation["Method"] == "rho x psi x omega"
         ]
-        .set_index("Case")["Nonoverlap_mean_ratio"]
+        .set_index("Case")["Post_control_to_control_mean_ratio"]
     )
 
     if list(primary_ratios.index) != list(CASES):
@@ -683,12 +673,12 @@ def verify_cross_table_consistency(
 
 
 def main() -> int:
-    """Run the non-overlap reanalysis and save deterministic tables."""
+    """Run the post-control/control reanalysis and save deterministic tables."""
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     print("=" * 76)
-    print("  NON-OVERLAPPING CRISIS-CONTROL REANALYSIS")
-    print("  Crisis-exclusive mean stress / full-control mean stress")
+    print("  POST-CONTROL VERSUS CONTROL REANALYSIS")
+    print("  Post-control mean stress / full-control mean stress")
     print("=" * 76)
     print(f"  Data directory: {DATA_DIR}")
 
@@ -719,23 +709,22 @@ def main() -> int:
             [
                 "Case",
                 "N_control",
-                "N_crisis_exclusive",
-                "Nonoverlap_mean_ratio",
+                "N_post_control",
+                "Post_control_to_control_mean_ratio",
             ]
         ].to_string(index=False)
     )
 
     print()
-    print("  Crisis-exclusive independent permutation summary:")
+    print("  Post-control independent-shuffle summary:")
     print(
         permutations.loc[
             permutations["Method"] == "Independent shuffle",
             [
                 "Case",
-                "N_crisis_exclusive",
+                "N_post_control",
                 "z_score",
                 "p_value_plus_one",
-                "Significant_005",
             ],
         ].to_string(index=False)
     )

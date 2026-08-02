@@ -1,15 +1,19 @@
-"""Full-factorial exploratory threshold-grid analysis.
+"""Legacy audit of the retrospective pattern-label threshold grid.
 
-Evaluates all combinations of the existing exploratory pattern-label
-thresholds:
+Evaluates all combinations of the existing retrospective label rules:
 
 - Pre-loaded cutoff: 0.70, 0.75, 0.80, 0.85, 0.90
-- Ductile lead cutoff: 200, 250, 300, 350, 400 days
-- Onset fraction: 0.05, 0.10, 0.15, 0.20
+- Ductile timing cutoff: 200, 250, 300, 350, 400 days
+- Cumulative-trajectory fraction: 0.05, 0.10, 0.15, 0.20
 
-This produces 5 x 5 x 4 = 100 combinations per selected case.
-The analysis describes label retention within this prespecified grid.
-It does not validate the taxonomy.
+This produces 5 x 5 x 4 = 100 combinations per selected case. The labels
+depend on post hoc event dates and final cumulative trajectories, and several
+baseline crossings occur within the corresponding control windows. The
+analysis is retained for audit reproducibility but excluded from the revised
+evidentiary package. It does not establish validated classes, warning lead
+times, or predictive performance.
+
+Output filenames and numerical procedures remain unchanged.
 
 Outputs
 -------
@@ -386,12 +390,12 @@ def verify_outputs(
 
 
 def main() -> int:
-    """Run the full-factorial threshold-grid analysis."""
+    """Run the legacy retrospective-label threshold-grid audit."""
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     print("=" * 76)
-    print("  FULL-FACTORIAL EXPLORATORY THRESHOLD GRID")
-    print("  5 pre-loaded x 5 ductile x 4 onset = 100 combinations per case")
+    print("  LEGACY AUDIT: RETROSPECTIVE LABEL THRESHOLD GRID")
+    print("  100 historical-rule combinations evaluated per selected case")
     print("=" * 76)
     print(f"  Data directory: {DATA_DIR}")
 

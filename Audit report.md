@@ -5,6 +5,16 @@
 **Scope:** Full repository review (Cases/, run_*.py, sensitivity/, data/)
 **Method:** Automated numerical verification + logic review + manipulation screening
 
+## Current Revision Disposition (2026-08-02)
+
+This report preserves historical baseline findings and proposed fixes that were later superseded. The current classified repository state contains four revised-primary outputs, four active supporting diagnostics, twenty-six legacy-audit outputs, and sixteen frozen input files.
+
+Retrospective pattern labels and their threshold grid, S1, S2, ST15, ST16, and ST17 are retained for audit reproducibility but excluded from the revised evidentiary package. S4 remains active only as a descriptive control-window correlation table without a pass/fail threshold. The 2008 variable-substitution analysis remains active as specification sensitivity because its baseline reproduces the revised primary 2008 result.
+
+ST15 is a self-contained live-FRED alternate reconstruction. Its k=5 row does not reproduce the frozen primary date sets, normalization limits, stress values, or sample counts. Both ST15 tables are therefore classified as legacy audit artifacts rather than sensitivity evidence for the frozen primary pipeline.
+
+These classifications narrow the manuscript claims without deleting or altering the historical numerical results.
+
 ---
 
 ## Executive Summary
@@ -13,8 +23,8 @@ The frozen baseline numerical results are reproducible from the committed CSV da
 
 **Scope-limited assessment:** No direct evidence of data alteration was identified in the audited repository state. Indicators:
 
-- Unfavorable results, including Supply Chain p=0.26, the legacy cumulative Repo ratio of 0.7×, and non-redundancy failures, are retained in the repository and supporting documentation; revised metric-aligned results are documented in the addendum below.
-- The retained transform window k=5 has a one-business-week interpretation and does not maximize tested separation; k=10 yields 21.1× versus 17.9× for k=5. The audit cannot independently establish the original selection process.
+- Unfavorable results, including Supply Chain p=0.26, the legacy cumulative Repo ratio of 0.7×, and high pairwise channel correlations, are retained in the repository and supporting documentation; revised metric-aligned results are documented in the addendum below.
+- The legacy ST15 alternate reconstruction retains k=5 despite k=10 producing the largest tested separation. Because this pipeline does not reproduce the frozen primary baseline, it is preserved for audit history rather than used as revised sensitivity evidence.
 - Across the 8 examined random seeds, z-scores varied by approximately ±0.5 and the reported significance decisions were unchanged. This is a limited seed-sensitivity check, not proof of seed independence.
 - No outlier-removal operation, NaN manipulation, or post hoc row exclusion was identified in the audited CSV files and inspected pipeline code.
 
@@ -125,7 +135,7 @@ Manuscript ST5 reports ρ-only ablation for Terra-Luna as 1.7×. Code precise va
 
 ST15 baseline (k=5) shows Sep=17.9× (N=1045/608), while Table 2 shows Sep=18.6× (N=990/574). The difference comes from wider date alignment in `sensitivity_delta_k.py` which fetches fresh FRED data with slightly different index alignment.
 
-**Fix:** Add footnote: "ST15 uses independently fetched data with wider date alignment; minor differences from Table 2 baseline reflect index alignment, not methodological inconsistency."
+**Current disposition:** ST15 is retained as a self-contained live-FRED alternate reconstruction and classified as a legacy audit artifact. Its k=5 row does not reproduce the frozen primary pipeline, so it is excluded from revised sensitivity evidence rather than explained as a minor alignment difference.
 
 ---
 
@@ -200,7 +210,7 @@ The revised primary estimand is the mean stress in crisis observations strictly
 after the prespecified control-window end divided by the mean stress in the
 full prespecified control window.
 
-| Case | Crisis-exclusive mean-stress ratio |
+| Case | Post-control mean-stress ratio |
 |------|------------------------------------:|
 | 2008 Financial | 15.91699× |
 | Terra-Luna | 1.11491× |
@@ -215,14 +225,14 @@ selection, temporal carryover, or control-window design limitations.
 The original cumulative and full-window mean ratios remain archived as legacy
 descriptive quantities rather than being deleted.
 
-### C. Crisis-exclusive permutation diagnostics
+### C. Post-control permutation diagnostics
 
 `run_nonoverlap_reanalysis.py` now generates
-`table_nonoverlap_permutation.csv` using the same crisis-exclusive segments as
+`table_nonoverlap_permutation.csv` using the same post-control segments as
 the revised primary comparison.
 
 The statistic is the mean of the aligned product
-`rho_norm × psi_norm × omega_norm` within the crisis-exclusive segment.
+`rho_norm × psi_norm × omega_norm` within the post-control segment.
 Channels are shuffled independently. The analysis therefore evaluates temporal
 channel alignment; it is not a direct permutation test of the crisis-control
 mean-stress ratio.

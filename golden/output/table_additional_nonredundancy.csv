@@ -1,4 +1,4 @@
-Case,"r(rho,psi)","r(rho,omega)","r(psi,omega)",max|r|,Pass(<0.7)
-2000 Dot-com Crash,0.576,0.607,0.765,0.765,No
-2019 Repo Near-miss,0.267,0.866,0.547,0.866,No
-2011 Thailand Floods,0.361,-0.185,-0.2,0.361,Yes
+Case,Correlation_window,"r(rho,psi)","r(rho,omega)","r(psi,omega)",max|r|,Interpretive_status
+2000 Dot-com Crash,Stable calibration period,0.576,0.607,0.765,0.765,Descriptive pairwise linear correlation; no pass/fail threshold
+2019 Repo Near-miss,Stable calibration period,0.267,0.866,0.547,0.866,Descriptive pairwise linear correlation; no pass/fail threshold
+2011 Thailand Floods,Stable calibration period,0.361,-0.185,-0.2,0.361,Descriptive pairwise linear correlation; no pass/fail threshold

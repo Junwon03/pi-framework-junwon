@@ -1,19 +1,27 @@
 """
-Supplementary Table 15: Transform Window Sensitivity (Delta-k)
-================================================================
-Evaluates sensitivity of the 2008 Financial case to alternative diff() windows.
-k = 1, 3, 5 (baseline), 10, 20 business days
+Legacy Supplementary Table 15: Transform-Window Alternate Reconstruction
+=========================================================================
+Runs a self-contained live-FRED reconstruction of the 2008 Financial case
+across k = 1, 3, 5, 10, and 20 observation-difference windows.
 
-Fully self-contained: no imports from repo modules.
-Place in: {repo_root}/sensitivity/sensitivity_delta_k.py
-Run from repo root: python sensitivity/sensitivity_delta_k.py
-Requires: FRED_API_KEY environment variable
+This pipeline uses its own live-data alignment, normalization calibration,
+fixed 1/252 observation weight, and legacy 1,000-shuffle diagnostic. Its
+k=5 result does not reproduce the frozen revised-primary baseline and is
+therefore retained for audit reproducibility rather than revised evidence.
+
+The output filenames and schemas remain unchanged for compatibility.
+
+Run from repository root:
+    python sensitivity/sensitivity_delta_k.py
+
+Requires:
+    FRED_API_KEY
+    FRED_VINTAGE_DATE=2026-02-17
 
 Outputs:
-  output/table_ST15_delta_k_sensitivity.csv
-  output/table_ST15_nonoverlap_delta_k.csv
+    output/table_ST15_delta_k_sensitivity.csv
+    output/table_ST15_nonoverlap_delta_k.csv
 """
-
 import os
 import sys
 import pandas as pd
@@ -150,8 +158,8 @@ def run_case_with_k(k, dff_raw, ted_raw, bkcr_raw):
     T_n = control['N'] * dt
     sep_s = (pi_c / T_c) / (pi_n / T_n) if (T_n > 0 and pi_n > 0) else float('inf')
 
-    # Primary non-overlap comparison:
-    # mean crisis stress strictly after the actual control end date,
+    # Legacy post-control comparison within this alternate reconstruction:
+    # mean stress strictly after the actual control end date,
     # divided by mean stress across the full control window.
     if control['N'] == 0:
         raise ValueError("Control window contains no observations.")
@@ -193,7 +201,7 @@ def run_case_with_k(k, dff_raw, ted_raw, bkcr_raw):
 
     print(
         f"    N={crisis['N']}, Sep(Pi)={sep_pi:.1f}x, "
-        f"Sep(non-overlap mean)={sep_nonoverlap:.4f}x, "
+        f"Sep(alternate post-control mean)={sep_nonoverlap:.4f}x, "
         f"z={z:.2f}, p={pval:.4f}"
     )
 
@@ -302,18 +310,18 @@ def main():
             f"{legacy_df['Sep_Pi'].min()}x to "
             f"{legacy_df['Sep_Pi'].max()}x"
         )
-        print(f"  All p < 0.05: {(legacy_df['p'] < 0.05).all()}")
+        print(f"  All legacy empirical exceedance fractions < 0.05: {(legacy_df['p'] < 0.05).all()}")
         print(
             f"  All legacy Sep(Pi) > 1: "
             f"{(legacy_df['Sep_Pi'] > 1).all()}"
         )
         print(
-            f"  Non-overlap mean-ratio range: "
+            f"  Alternate post-control/control mean-ratio range: "
             f"{nonoverlap_df['Nonoverlap_mean_ratio'].min():.4f}x to "
             f"{nonoverlap_df['Nonoverlap_mean_ratio'].max():.4f}x"
         )
         print(
-            f"  All non-overlap mean ratios > 1: "
+            f"  All alternate post-control/control mean ratios > 1: "
             f"{(nonoverlap_df['Nonoverlap_mean_ratio'] > 1).all()}"
         )
 

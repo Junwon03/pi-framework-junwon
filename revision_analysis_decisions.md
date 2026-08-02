@@ -20,9 +20,9 @@ window end divided by mean stress in the full prespecified control window.
 The original full-window cumulative ratio and full-window mean ratio will be
 retained as legacy descriptive quantities rather than deleted or replaced.
 
-## 2. Crisis-exclusive permutation diagnostic
+## 2. Post-control permutation diagnostic
 
-The permutation analysis will be restricted to the same crisis-exclusive
+The permutation analysis will be restricted to the same post-control
 segment used by the primary comparison.
 
 It tests whether the observed temporal alignment of rho, psi, and omega within
@@ -53,10 +53,11 @@ No further cases will be added during this revision.
 For Dot-com, 2019 Repo, and Thailand Floods, both metrics will be preserved:
 
 - legacy cumulative ratio
-- primary mean-stress ratio
+- exploratory mean-stress ratio aligned with the revised estimand
 
-The mean-stress ratio will be used for comparison with the revised primary
-estimand. Cases will not be classified as positive or negative by selecting
+The mean-stress ratio will be used only as an exploratory metric-aligned
+comparison with the revised primary estimand. Cases will not be classified as
+positive or negative by selecting
 whichever metric gives the preferred direction.
 
 These cases are exploratory comparison or boundary cases, not formal negative
@@ -107,3 +108,28 @@ This revision is a retrospective characterization of selected cases. It does
 not establish universal validation, prospective prediction, calibrated
 false-alarm performance, or population-level cross-domain generalization.
 A properly powered many-episode or prospective design remains future work.
+
+## 8. Evidence hierarchy after appendix audit
+
+The revised evidentiary package is limited to:
+
+- post-control primary contrast
+- post-control three-formulation comparison
+- post-control nine-method ablation
+- post-control channel-alignment permutation diagnostics
+
+The four active supporting diagnostics are:
+
+- descriptive control-window pairwise correlations
+- 2008 variable-substitution specification sensitivity
+- additional-case exploratory metric alignment
+- specification provenance
+
+Retrospective pattern labels and their threshold grid, S1, S2, ST15, ST16,
+and ST17 are retained as legacy audit artifacts. Their calculations and
+outputs remain available, but they are excluded from the revised manuscript's
+evidentiary claims.
+
+This classification was based on methodological relevance and alignment with
+the revised pipeline rather than whether individual results were favorable.
+No retained numerical result was altered to fit the revised interpretation.

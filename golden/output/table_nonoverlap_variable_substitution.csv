@@ -1,4 +1,4 @@
-Configuration,rho,psi,omega,Mean_crisis_exclusive,Mean_control,Nonoverlap_mean_ratio,N_crisis_exclusive,N_control,Pct_change_from_baseline
+Configuration,rho,psi,omega,Mean_post_control,Mean_control,Post_control_to_control_mean_ratio,N_post_control,N_control,Pct_change_from_baseline
 Baseline (DFF x TEDRATE x TOTBKCR),DFF,TEDRATE,TOTBKCR,0.6852971574,0.043054445,15.9169896817,643,574,0.0%
 rho -> DGS2 (2-Year Treasury),DGS2,TEDRATE,TOTBKCR,0.4725143867,0.1271074563,3.71744035,643,574,-76.6%
 Psi -> VIXCLS (VIX),DFF,VIXCLS,TOTBKCR,0.577843502,0.1133118644,5.0995851598,643,574,-68.0%

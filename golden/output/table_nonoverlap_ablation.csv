@@ -1,4 +1,4 @@
-Case,Method,Level,N_crisis_exclusive,N_control,Mean_crisis_exclusive,Mean_control,Nonoverlap_mean_ratio,Rank_within_case
+Case,Method,Level,N_post_control,N_control,Mean_post_control,Mean_control,Post_control_to_control_mean_ratio,Rank_within_case
 2008 Financial,rho only,1-Single,643,574,0.3557542768,0.2088103534,1.7037195284,8
 2008 Financial,psi only,1-Single,643,574,0.8977977459,0.213683486,4.2015307899,4
 2008 Financial,omega only,1-Single,643,574,1.0356572888,0.8192518086,1.2641501403,9

@@ -1,11 +1,16 @@
 """
-Retrospective rolling-trajectory analysis with a legacy audit comparison.
+Legacy retrospective trajectory and method-comparison audits.
 
-The retrospective analysis evaluates threshold-crossing timing relative to
-predefined event dates. It is not prospective validation or forecasting.
+The ST17 trajectory tables evaluate threshold-crossing timing relative to
+predefined event dates. They are retrospective, uncalibrated diagnostics and
+are excluded from the revised evidentiary package. The original trajectory
+uses thresholds derived from raw control stress while evaluating rolling
+crisis means; the matched variant uses rolling-control thresholds and searches
+strictly after the control-window end. Neither analysis establishes warning,
+forecasting, prospective validation, or calibrated false-alarm performance.
 
-The method-comparison analysis is excluded from the revised manuscript's
-evidentiary package and retained only for audit reproducibility.
+The optional ST16 method comparison is likewise retained only for audit
+reproducibility. Output filenames and numerical procedures remain unchanged.
 
 Usage:
     python run_method_comparison.py
@@ -173,12 +178,12 @@ def run_method_comparison():
 
 
 # ═══════════════════════════════════════════════════════════════
-# Retrospective rolling-trajectory analysis
+# Legacy audit: retrospective rolling-trajectory analysis
 # ═══════════════════════════════════════════════════════════════
 
 def run_retrospective_trajectory():
     print("\n" + "=" * 80)
-    print("  RETROSPECTIVE ROLLING-TRAJECTORY ANALYSIS")
+    print("  LEGACY AUDIT: RETROSPECTIVE ROLLING-TRAJECTORY ANALYSIS")
     print("=" * 80)
 
     results = []
@@ -258,7 +263,7 @@ def run_matched_threshold_sensitivity():
     diagnostic, not a prospective prediction test.
     """
     print("\n" + "=" * 80)
-    print("  ST17 ROLLING-MATCHED THRESHOLD SENSITIVITY")
+    print("  LEGACY AUDIT: ST17 ROLLING-MATCHED THRESHOLD SENSITIVITY")
     print("  Control exceedances and post-control crisis crossings")
     print("=" * 80)
 
@@ -548,7 +553,7 @@ def _plot_2008_retrospective():
 # ═══════════════════════════════════════════════════════════════
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Run the retrospective rolling-trajectory analysis."
+        description="Run legacy retrospective trajectory and optional method-comparison audits."
     )
     parser.add_argument(
         "--include-audit-method-comparison",

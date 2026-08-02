@@ -1,8 +1,9 @@
 """Deterministic metric alignment for the three additional comparison cases.
 
-Reads only frozen CSV inputs from data/. It preserves the original cumulative
-ratio as a legacy descriptive quantity and applies the revised mean-stress
-ratio uniformly across all three cases.
+Reads only frozen CSV inputs from data/. It preserves the archived cumulative
+ratio as a legacy descriptive quantity using the historical fixed
+per-observation repository weights. Those weights are not elapsed-time
+integration. The mean-stress ratio is applied uniformly across all cases.
 
 These cases are exploratory boundary comparisons, not formal negative controls
 or independent validation episodes.
@@ -24,12 +25,12 @@ CASES = {
     "2000 Dot-com Crash": {
         "crisis": "crisis_dotcom_pi.csv",
         "control": "control_dotcom_pi.csv",
-        "frequency": "daily",
+        "frequency": "weekly",
     },
     "2019 Repo Near-miss": {
         "crisis": "crisis_repo_pi.csv",
         "control": "control_repo_pi.csv",
-        "frequency": "daily",
+        "frequency": "weekly",
     },
     "2011 Thailand Floods": {
         "crisis": "crisis_thailand_pi.csv",
@@ -92,16 +93,25 @@ def load_frame(path: Path, label: str) -> pd.DataFrame:
     return frame
 
 
-def estimate_dt(frame: pd.DataFrame) -> float:
-    """Apply the repository daily/monthly integration convention."""
-    if len(frame) <= 1:
-        return 1.0 / 365.0
+def legacy_observation_weight(frequency: str) -> float:
+    """Return the archived fixed per-observation repository weight.
 
-    average_gap_days = (
-        frame.index[-1] - frame.index[0]
-    ).days / len(frame)
+    Weekly cases retain the historical 1/365 weight solely to reproduce the
+    archived legacy cumulative quantities. It must not be interpreted as the
+    elapsed duration represented by one weekly observation.
+    """
+    weights = {
+        "daily": 1.0 / 365.0,
+        "weekly": 1.0 / 365.0,
+        "monthly": 1.0 / 12.0,
+    }
 
-    return 1.0 / 12.0 if average_gap_days > 20 else 1.0 / 365.0
+    try:
+        return weights[frequency]
+    except KeyError as error:
+        raise ValueError(
+            f"Unsupported source frequency: {frequency}"
+        ) from error
 
 
 def build_table() -> pd.DataFrame:
@@ -125,14 +135,15 @@ def build_table() -> pd.DataFrame:
                 f"found {len(overlap)} shared dates"
             )
 
-        dt_crisis = estimate_dt(crisis)
-        dt_control = estimate_dt(control)
+        legacy_weight = legacy_observation_weight(
+            info["frequency"]
+        )
 
         cumulative_crisis = float(
-            (crisis["stress"] * dt_crisis).sum()
+            (crisis["stress"] * legacy_weight).sum()
         )
         cumulative_control = float(
-            (control["stress"] * dt_control).sum()
+            (control["stress"] * legacy_weight).sum()
         )
         mean_crisis = float(crisis["stress"].mean())
         mean_control = float(control["stress"].mean())
@@ -145,6 +156,11 @@ def build_table() -> pd.DataFrame:
         rows.append({
             "Case": case_name,
             "Frequency": info["frequency"],
+            "Legacy_observation_weight": legacy_weight,
+            "Legacy_weight_interpretation": (
+                "Fixed per-observation repository weight; "
+                "not elapsed-time integration"
+            ),
             "Crisis_start": crisis.index.min().date().isoformat(),
             "Crisis_end": crisis.index.max().date().isoformat(),
             "Control_start": control.index.min().date().isoformat(),
@@ -159,7 +175,7 @@ def build_table() -> pd.DataFrame:
             ),
             "Mean_stress_crisis": mean_crisis,
             "Mean_stress_control": mean_control,
-            "Primary_mean_stress_ratio": (
+            "Exploratory_mean_stress_ratio": (
                 mean_crisis / mean_control
             ),
             "Interpretive_status": (
@@ -170,12 +186,13 @@ def build_table() -> pd.DataFrame:
     result = pd.DataFrame(rows)
 
     numeric_columns = [
+        "Legacy_observation_weight",
         "Cumulative_crisis",
         "Cumulative_control",
         "Legacy_cumulative_ratio",
         "Mean_stress_crisis",
         "Mean_stress_control",
-        "Primary_mean_stress_ratio",
+        "Exploratory_mean_stress_ratio",
     ]
     result[numeric_columns] = result[numeric_columns].round(10)
 
@@ -192,7 +209,7 @@ def main() -> int:
 
     print("=" * 76)
     print("  ADDITIONAL-CASE METRIC ALIGNMENT")
-    print("  Legacy cumulative ratio retained; mean-stress ratio is primary")
+    print("  Legacy cumulative ratio retained for audit; mean-stress ratio is exploratory")
     print("=" * 76)
     print(
         table[
@@ -202,7 +219,7 @@ def main() -> int:
                 "N_control",
                 "N_exact_overlap",
                 "Legacy_cumulative_ratio",
-                "Primary_mean_stress_ratio",
+                "Exploratory_mean_stress_ratio",
             ]
         ].to_string(index=False)
     )

@@ -1,4 +1,4 @@
-Case,Formulation,N_crisis_exclusive,N_control,Mean_crisis_exclusive,Mean_control,Nonoverlap_mean_ratio,Rank_within_case
+Case,Formulation,N_post_control,N_control,Mean_post_control,Mean_control,Post_control_to_control_mean_ratio,Rank_within_case
 2008 Financial,Multiplicative,643,574,0.6852971574,0.043054445,15.9169896817,1
 2008 Financial,Additive,643,574,2.2892093115,1.2417456481,1.8435412398,2
 2008 Financial,Maximum,643,574,1.4578807401,0.8281606203,1.760384042,3

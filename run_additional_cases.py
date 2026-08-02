@@ -1,8 +1,10 @@
 """
-Pi Framework — Additional Comparison Cases
+Pi Framework — Exploratory Additional Comparison Cases
 ============================================
-Generates new crisis/control datasets using EXISTING variable definitions
-applied to different time periods. No variable redefinition.
+Generates exploratory crisis/control datasets using existing variable
+definitions applied to different periods. Archived cumulative quantities
+retain historical fixed per-observation weights for reproducibility; these
+weights are not elapsed-time integration.
 
 Cases:
   1. 2000 Dot-com Crash (Traditional Finance)
@@ -20,7 +22,8 @@ Cases:
   3. 2011 Thailand Floods (Global Logistics)
      Variables: DGORDER × ISM delivery times × WPU3012 (identical to Supply Chain)
      Crisis: 2011-01 to 2012-06
-     Control: 2009-01 to 2010-12
+     Configured control: 2009-01 to 2010-12
+     Usable aligned control observations: 2009-06-01 to 2010-12-01
      Stable (P-limit): 2006-01 to 2010-12
 
 Requires: FRED_API_KEY environment variable
@@ -32,6 +35,8 @@ Outputs:
   data/crisis_thailand_pi.csv, data/control_thailand_pi.csv
   output/table_additional_cases.csv
   output/table_additional_permutation.csv
+  output/table_additional_time_normalized.csv
+  output/table_additional_nonredundancy.csv
 """
 
 import pandas as pd
@@ -79,7 +84,7 @@ CASES = {
     'dotcom': {
         'name': '2000 Dot-com Crash',
         'domain': 'Traditional Finance',
-        'freq': 'daily',
+        'freq': 'weekly',
         'variables': {
             'rho': {'series': 'DFF', 'transform': 'raw'},
             'psi': {'series': 'TEDRATE', 'transform': 'raw'},
@@ -93,12 +98,12 @@ CASES = {
         'crisis_end': '2002-12-31',
         'fetch_start': '1993-01-01',
         'fetch_end': '2002-12-31',
-        'dt': 1.0 / 365,
+        'legacy_observation_weight': 1.0 / 365,
     },
     'repo': {
         'name': '2019 Repo Near-miss',
         'domain': 'Traditional Finance (Near-miss)',
-        'freq': 'daily',
+        'freq': 'weekly',
         'variables': {
             'rho': {'series': 'DFF', 'transform': 'raw'},
             'psi': {'series': 'TEDRATE', 'transform': 'raw'},
@@ -112,7 +117,7 @@ CASES = {
         'crisis_end': '2020-02-29',  # Pre-COVID cutoff
         'fetch_start': '2014-01-01',
         'fetch_end': '2020-02-29',
-        'dt': 1.0 / 365,
+        'legacy_observation_weight': 1.0 / 365,
     },
     'thailand': {
         'name': '2011 Thailand Floods',
@@ -131,7 +136,7 @@ CASES = {
         'crisis_end': '2012-06-30',
         'fetch_start': '2006-01-01',
         'fetch_end': '2012-06-30',
-        'dt': 1.0 / 12,
+        'legacy_observation_weight': 1.0 / 12,
     },
 }
 
@@ -186,7 +191,7 @@ def process_case(case_id, case_def):
         plimits[ch_name] = max(plimits[ch_name], 1e-10)
         print(f'    P99({ch_name}) = {plimits[ch_name]:.6f} (from {stable_mask.sum()} stable obs)')
 
-    # Check non-redundancy in stable period
+    # Descriptive pairwise linear correlations in the stable calibration period
     stable_rho = channels['rho'][stable_mask]
     stable_psi = channels['psi'][stable_mask]
     stable_omega = channels['omega'][stable_mask]
@@ -194,18 +199,18 @@ def process_case(case_id, case_def):
     r_ro = stable_rho.corr(stable_omega)
     r_po = stable_psi.corr(stable_omega)
     max_r = max(abs(r_rp), abs(r_ro), abs(r_po))
-    print(f'    Non-redundancy: r(rho,psi)={r_rp:.3f}, r(rho,omega)={r_ro:.3f}, r(psi,omega)={r_po:.3f}')
-    print(f'    max|r| = {max_r:.3f} {"PASS (<0.7)" if max_r < 0.7 else "FAIL (>=0.7)"}')
+    print(f'    Stable-window correlations: r(rho,psi)={r_rp:.3f}, r(rho,omega)={r_ro:.3f}, r(psi,omega)={r_po:.3f}')
+    print(f'    max|r| = {max_r:.3f} (descriptive; no pass/fail threshold)')
 
     # Normalize (clip at 0 to prevent negative contributions, matching PiCalc)
     norm = {}
     for ch_name in ['rho', 'psi', 'omega']:
         norm[ch_name] = (channels[ch_name] / plimits[ch_name]).clip(lower=0)
 
-    # Stress and Pi
+    # Stress and archived legacy cumulative quantity
     stress = norm['rho'] * norm['psi'] * norm['omega']
-    dt = case_def['dt']
-    pi = (stress * dt).cumsum()
+    legacy_weight = case_def['legacy_observation_weight']
+    pi = (stress * legacy_weight).cumsum()
 
     # Build dataframes
     df_full = pd.DataFrame({
@@ -227,8 +232,8 @@ def process_case(case_id, case_def):
     control_df = df_full[control_mask].copy()
 
     # Recompute pi from start of each window
-    crisis_df['pi'] = (crisis_df['stress'] * dt).cumsum()
-    control_df['pi'] = (control_df['stress'] * dt).cumsum()
+    crisis_df['pi'] = (crisis_df['stress'] * legacy_weight).cumsum()
+    control_df['pi'] = (control_df['stress'] * legacy_weight).cumsum()
 
     pi_crisis = crisis_df['pi'].iloc[-1] if len(crisis_df) > 0 else 0
     pi_control = control_df['pi'].iloc[-1] if len(control_df) > 0 else 0
@@ -244,12 +249,17 @@ def process_case(case_id, case_def):
     crisis_df.to_csv(os.path.join(DATA_DIR, f'crisis_{case_id}_pi.csv'))
     control_df.to_csv(os.path.join(DATA_DIR, f'control_{case_id}_pi.csv'))
 
-    # Time-normalized
-    t_crisis = len(crisis_df) * abs(dt)
-    t_control = len(control_df) * abs(dt)
-    sbar_crisis = pi_crisis / t_crisis if t_crisis > 0 else 0
-    sbar_control = pi_control / t_control if t_control > 0 else 0
-    sep_sbar = sbar_crisis / sbar_control if sbar_control > 0 else float('inf')
+    # Mean stress and legacy weighted-observation totals.
+    # The totals below reproduce archived cumulative quantities and are not years.
+    legacy_weight_total_crisis = len(crisis_df) * abs(legacy_weight)
+    legacy_weight_total_control = len(control_df) * abs(legacy_weight)
+    mean_stress_crisis = float(crisis_df['stress'].mean())
+    mean_stress_control = float(control_df['stress'].mean())
+    mean_stress_ratio = (
+        mean_stress_crisis / mean_stress_control
+        if mean_stress_control > 0
+        else float('inf')
+    )
 
     # Permutation test
     print(f'    Running permutation test (10,000 shuffles)...')
@@ -266,7 +276,7 @@ def process_case(case_id, case_def):
         shuffled_stress = (crisis_stress_vals[idx_r, 0] *
                           crisis_stress_vals[idx_p, 1] *
                           crisis_stress_vals[idx_o, 2])
-        perm_pis[i] = shuffled_stress.sum() * dt
+        perm_pis[i] = shuffled_stress.sum() * legacy_weight
 
     z_score = (pi_crisis - perm_pis.mean()) / perm_pis.std() if perm_pis.std() > 0 else 0
     p_value = (perm_pis >= pi_crisis).sum() / n_perm
@@ -287,11 +297,11 @@ def process_case(case_id, case_def):
         'pi_control': pi_control,
         'separation': sep,
         'stress_max': stress_max,
-        't_crisis_yr': t_crisis,
-        't_control_yr': t_control,
-        'sbar_crisis': sbar_crisis,
-        'sbar_control': sbar_control,
-        'sep_sbar': sep_sbar,
+        'legacy_weight_total_crisis': legacy_weight_total_crisis,
+        'legacy_weight_total_control': legacy_weight_total_control,
+        'mean_stress_crisis': mean_stress_crisis,
+        'mean_stress_control': mean_stress_control,
+        'mean_stress_ratio': mean_stress_ratio,
         'z_score': z_score,
         'p_value': p_value,
         'r_rp': r_rp,
@@ -304,8 +314,8 @@ def process_case(case_id, case_def):
 def main():
     print()
     print('=' * 70)
-    print('  Pi FRAMEWORK - ADDITIONAL COMPARISON CASES')
-    print('  Same variables, different time periods')
+    print('  Pi FRAMEWORK - EXPLORATORY ADDITIONAL COMPARISON CASES')
+    print('  Boundary comparisons; not validation episodes')
     print('=' * 70)
 
     if not FRED_API_KEY:
@@ -346,26 +356,42 @@ def main():
     } for r in results])
     perm.to_csv(os.path.join(OUT_DIR, 'table_additional_permutation.csv'), index=False)
 
-    # Save time-normalized table
+    # Legacy compatibility filename; contents no longer imply elapsed years.
     tn = pd.DataFrame([{
         'Case': r['name'],
+        'Frequency': r['freq'],
         'N_crisis': r['n_crisis'],
         'N_control': r['n_control'],
-        'T_crisis_yr': round(r['t_crisis_yr'], 3),
-        'T_control_yr': round(r['t_control_yr'], 3),
-        'Sep_Pi': round(r['separation'], 1),
-        'Sep_Sbar': round(r['sep_sbar'], 1),
+        'Legacy_observation_weight': CASES[r['case_id']]['legacy_observation_weight'],
+        'Legacy_weight_total_crisis': round(
+            r['legacy_weight_total_crisis'], 10
+        ),
+        'Legacy_weight_total_control': round(
+            r['legacy_weight_total_control'], 10
+        ),
+        'Legacy_cumulative_ratio': round(r['separation'], 10),
+        'Exploratory_mean_stress_ratio': round(
+            r['mean_stress_ratio'], 10
+        ),
+        'Interpretive_status': (
+            'Exploratory boundary comparison; legacy cumulative values '
+            'use fixed per-observation weights'
+        ),
     } for r in results])
     tn.to_csv(os.path.join(OUT_DIR, 'table_additional_time_normalized.csv'), index=False)
 
-    # Save non-redundancy table
+    # Save descriptive stable-window correlation diagnostics.
     nr = pd.DataFrame([{
         'Case': r['name'],
+        'Correlation_window': 'Stable calibration period',
         'r(rho,psi)': round(r['r_rp'], 3),
         'r(rho,omega)': round(r['r_ro'], 3),
         'r(psi,omega)': round(r['r_po'], 3),
         'max|r|': round(r['max_r'], 3),
-        'Pass(<0.7)': 'Yes' if r['max_r'] < 0.7 else 'No',
+        'Interpretive_status': (
+            'Descriptive pairwise linear correlation; '
+            'no pass/fail threshold'
+        ),
     } for r in results])
     nr.to_csv(os.path.join(OUT_DIR, 'table_additional_nonredundancy.csv'), index=False)
 
@@ -373,11 +399,11 @@ def main():
     print(f'\n  {"="*70}')
     print(f'  SUMMARY')
     print(f'  {"="*70}')
-    print(f'  {"Case":<30} {"Sep":>8} {"Sep(Sbar)":>10} {"z":>8} {"p":>10} {"max|r|":>8}')
+    print(f'  {"Case":<30} {"Legacy Sep":>11} {"Mean ratio":>11} {"z":>8} {"p":>10} {"max|r|":>8}')
     print(f'  {"-"*70}')
     for r in results:
         p_str = f'<1e-04' if r['p_value'] < 0.0001 else f'{r["p_value"]:.4f}'
-        print(f'  {r["name"]:<30} {r["separation"]:>7.1f}x {r["sep_sbar"]:>9.1f}x {r["z_score"]:>7.2f} {p_str:>10} {r["max_r"]:>7.3f}')
+        print(f'  {r["name"]:<30} {r["separation"]:>10.1f}x {r["mean_stress_ratio"]:>10.1f}x {r["z_score"]:>7.2f} {p_str:>10} {r["max_r"]:>7.3f}')
 
     print(f'\n  Saved: table_additional_cases.csv, table_additional_permutation.csv')
     print(f'         table_additional_time_normalized.csv, table_additional_nonredundancy.csv')

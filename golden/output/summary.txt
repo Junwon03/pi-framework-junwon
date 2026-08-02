@@ -3,12 +3,10 @@ Pi Framework — Retrospective Cross-Case Results
 
 1. Original-window cumulative ratio > 1.0: 5/5 selected cases
 2. Three-formulation comparison: multiplicative highest in 5/5
-3. Permutation test: 4/5 significant (p < 0.05)
-4. Exploratory patterns: three labels assigned
-
-Fisher combined p-value: 1.66e-11
+3. Legacy original-window channel-alignment diagnostic: 4/5 unadjusted p < 0.05
+4. Legacy audit: retrospective pattern labels retained; not revised evidence
 Interpretation: retrospective characterization of five selected cases; not universal validation or prospective prediction.
 
-Supplementary: S1 (P-limit), S2 (Perturbation), S4 (Non-redundancy)
-Sensitivity: Transform-window analysis retained; matched-pipeline analysis excluded from the revised evidentiary package and retained only for audit reproducibility.
-Figures: 6 publication figures (300 dpi PNG + PDF)
+Active supporting diagnostics: S4 control-window correlations, post-control variable substitution, additional-case metric alignment, and specification provenance.
+Legacy audits retained for reproducibility but excluded from revised evidence: retrospective pattern labels and threshold grid, S1 scale invariance, S2 perturbation, ST15 transform-window reconstruction, and ST17 trajectory analyses.
+Figures: 6 historical audit figures (300 dpi PNG + PDF)

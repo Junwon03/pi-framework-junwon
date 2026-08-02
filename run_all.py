@@ -1,18 +1,18 @@
 """
-Pi Structural Stability Index - Unified Analysis
+Pi Structural Stability Index - Legacy Audit Generator
 =================================================
 5-case cross-case retrospective characterization + statistical tests
-+ supplementary sensitivity diagnostics + publication figures
++ legacy audit diagnostics + historical audit figures
 
 All analyses run from pre-computed CSV data in data/ folder.
 No API keys needed for core analyses.
 Legacy SVB transferability-feasibility audit requires FRED_API_KEY.
 
 Usage:
-  python run_all.py              # Core analyses (no API needed)
+  python run_all.py              # Legacy original-window and audit analyses
   python run_all.py --svb        # Include legacy SVB feasibility audit (not revised evidence)
-  python run_all.py --figures    # Generate publication figures (needs matplotlib)
-  python run_all.py --all        # Everything
+  python run_all.py --figures    # Generate historical audit figures (needs matplotlib)
+  python run_all.py --all        # Legacy analyses, diagnostics, and audit figures
 """
 
 import pandas as pd
@@ -270,22 +270,28 @@ def run_permutation_test():
         p_str = f'{p_corr:.4f}' if p_corr > 0 else f'<{n_tests/N_PERM:.0e}'
         print(f'    {name:<18}: p_corrected = {p_str} {sig}')
 
-    # Fisher combined
+    # Legacy Fisher combination retained for audit continuity only.
     p_values = [max(r['p_value'], 1/N_PERM) for r in results.values()]
     chi2_stat = -2 * sum(np.log(p) for p in p_values)
-    fisher_p = 1 - scipy_stats.chi2.cdf(chi2_stat, df=2*len(p_values))
-    print(f'\n  Fisher combined p-value: {fisher_p:.2e}')
+    fisher_p = 1 - scipy_stats.chi2.cdf(
+        chi2_stat,
+        df=2 * len(p_values),
+    )
+    print(
+        f'\n  Legacy Fisher combination '
+        f'(audit only; not revised evidence): {fisher_p:.2e}'
+    )
 
     return results
 
 
 # ================================================================
-# ANALYSIS 4: EXPLORATORY PATTERN LABELS
+# LEGACY AUDIT: RETROSPECTIVE PATTERN LABELS
 # ================================================================
 
 def run_failure_modes():
     print(f'\n\n{"=" * 75}')
-    print('  ANALYSIS 4: Exploratory Pattern Labels')
+    print('  LEGACY AUDIT: Retrospective Pattern Labels')
     print('=' * 75)
 
     results = []
@@ -308,7 +314,7 @@ def run_failure_modes():
         else:
             lead_days = 0
 
-        # Exploratory retrospective pattern labels, not validated failure laws.
+        # Retrospective labels retained for audit reproducibility; not validated failure laws, warning classes, or revised evidence.
         if pct_of_max > 80:
             mode = 'Pre-loaded'
             analogy = 'Creep rupture'
@@ -432,12 +438,12 @@ def run_svb_oos():
 
 
 # ================================================================
-# SUPPLEMENTARY TEST S1: P-LIMIT SCALE-INVARIANCE DIAGNOSTIC
+# LEGACY AUDIT S1: P-LIMIT SCALE-INVARIANCE DIAGNOSTIC
 # ================================================================
 
 def run_plimit_sensitivity():
     print(f'\n\n{"=" * 75}')
-    print('  SUPPLEMENTARY S1: P-limit Scale-Invariance Diagnostic')
+    print('  LEGACY AUDIT S1: P-limit Scale-Invariance Diagnostic')
     print('=' * 75)
     print('  Note: This is an algebraic diagnostic, not independent empirical')
     print('  robustness evidence. Common P-limit factors cancel in the')
@@ -472,13 +478,15 @@ def run_plimit_sensitivity():
 
 
 # ================================================================
-# SUPPLEMENTARY TEST S2: VARIABLE PERTURBATION (2008)
+# LEGACY AUDIT S2: VARIABLE PERTURBATION (2008)
 # ================================================================
 
 def run_variable_perturbation():
     print(f'\n\n{"=" * 75}')
-    print('  SUPPLEMENTARY S2: Variable Perturbation (2008)')
+    print('  LEGACY AUDIT S2: Variable Perturbation (2008)')
     print('=' * 75)
+    print('  Note: single-case, single-seed Gaussian perturbation diagnostic;')
+    print('  retained for audit reproducibility, not revised robustness evidence.')
 
     cr8, ct8 = load_case('2008 Financial')
     dt8, dtc8 = estimate_dt(cr8), estimate_dt(ct8)
@@ -512,33 +520,48 @@ def run_variable_perturbation():
 
 
 # ================================================================
-# SUPPLEMENTARY TEST S4: NON-REDUNDANCY
+# SUPPLEMENTARY S4: CONTROL-WINDOW CORRELATION DIAGNOSTIC
 # ================================================================
 
-def run_nonredundancy():
+def run_control_window_correlations():
     print(f'\n\n{"=" * 75}')
-    print('  SUPPLEMENTARY S4: Non-Redundancy (Pairwise Correlations)')
+    print(
+        '  SUPPLEMENTARY S4: Control-Window Pairwise Linear '
+        'Correlations'
+    )
     print('=' * 75)
 
     rows = []
     for case_name in CASES:
-        _, ct = load_case(case_name)
-        rp = ct['rho_norm'].corr(ct['psi_norm'])
-        ro = ct['rho_norm'].corr(ct['omega_norm'])
-        po = ct['psi_norm'].corr(ct['omega_norm'])
+        _, control = load_case(case_name)
+        rp = control['rho_norm'].corr(control['psi_norm'])
+        ro = control['rho_norm'].corr(control['omega_norm'])
+        po = control['psi_norm'].corr(control['omega_norm'])
         mx = max(abs(rp), abs(ro), abs(po))
-        rows.append({'Case': case_name,
-                     'r(rho,psi)': round(rp, 3),
-                     'r(rho,omega)': round(ro, 3),
-                     'r(psi,omega)': round(po, 3),
-                     'max|r|': round(mx, 3),
-                     'Pass(<0.7)': 'Yes' if mx < 0.7 else 'No'})
-        status = '✅' if mx < 0.7 else '⚠️'
-        print(f'  {case_name:<18} max|r| = {mx:.3f} {status}')
+
+        rows.append({
+            'Case': case_name,
+            'Correlation_window': 'Full control window',
+            'r(rho,psi)': round(rp, 3),
+            'r(rho,omega)': round(ro, 3),
+            'r(psi,omega)': round(po, 3),
+            'max|r|': round(mx, 3),
+            'Interpretive_status': (
+                'Descriptive pairwise linear correlation; '
+                'no pass/fail threshold'
+            ),
+        })
+
+        print(
+            f'  {case_name:<18} max|r| = {mx:.3f} '
+            '(descriptive; no pass/fail threshold)'
+        )
 
     pd.DataFrame(rows).to_csv(
-        os.path.join(OUT_DIR, 'table_S4_nonredundancy.csv'), index=False)
-    print(f'  Saved: table_S4_nonredundancy.csv')
+        os.path.join(OUT_DIR, 'table_S4_nonredundancy.csv'),
+        index=False,
+    )
+    print('  Saved: table_S4_nonredundancy.csv')
     return rows
 
 
@@ -703,8 +726,8 @@ def generate_figures():
     fig.savefig(os.path.join(fig_dir, 'Figure4_permutation_tests.pdf'))
     plt.close(fig); print('    ✅')
 
-    # ── FIGURE 5: Failure modes ──
-    print('  Figure 5: Failure modes...')
+    # ── LEGACY FIGURE 5: Retrospective pattern labels ──
+    print('  Legacy Figure 5: Retrospective pattern labels...')
     fig, axes = plt.subplots(1, 5, figsize=(7.08, 2.5), constrained_layout=True)
     mc = {'Ductile': '#1976D2', 'Brittle': '#D32F2F', 'Pre-loaded': '#FF9800'}
     for i, name in enumerate(cases_list):
@@ -794,13 +817,13 @@ def generate_figures():
 # ================================================================
 
 def main():
-    parser = argparse.ArgumentParser(description='Pi Framework Unified Analysis')
+    parser = argparse.ArgumentParser(description='Pi Framework Legacy Audit Artifact Generator')
     parser.add_argument('--svb', action='store_true',
                         help='Include legacy SVB feasibility audit; not revised evidence')
     parser.add_argument('--figures', action='store_true',
-                        help='Generate publication figures (needs matplotlib)')
+                        help='Generate historical audit figures (needs matplotlib)')
     parser.add_argument('--all', action='store_true',
-                        help='Run everything: core + supplementary + figures')
+                        help='Run legacy analyses, diagnostics, and audit figures')
     args = parser.parse_args()
 
     if args.all:
@@ -810,8 +833,8 @@ def main():
 
     print()
     print('╔' + '═' * 73 + '╗')
-    print('║  Π STRUCTURAL STABILITY INDEX — UNIFIED ANALYSIS                       ║')
-    print('║  Cross-Case Retrospective Characterization + Statistical Tests         ║')
+    print('║' + '  Π STRUCTURAL STABILITY INDEX — LEGACY AUDIT GENERATOR'.ljust(73) + '║')
+    print('║' + '  Historical original-window and audit artifacts'.ljust(73) + '║')
     print('╚' + '═' * 73 + '╝')
     print(f'  Data directory: {DATA_DIR}')
     print(f'  Cases: {len(CASES)}')
@@ -834,7 +857,7 @@ def main():
 
     print(f'  All data files found ✅')
 
-    # ── Core analyses ──
+    # ── Legacy original-window analyses ──
     r1 = run_cross_domain()
     r2 = run_mult_vs_add()
     r3 = run_permutation_test()
@@ -844,10 +867,10 @@ def main():
     if args.svb:
         r5 = run_svb_oos()
 
-    # ── Supplementary tests ──
+    # ── Legacy audit diagnostics plus active S4 descriptive table ──
     run_plimit_sensitivity()
     run_variable_perturbation()
-    run_nonredundancy()
+    run_control_window_correlations()
 
     # ── Save CSV outputs (before figures, which read these files) ──
     df1 = pd.DataFrame(r1)
@@ -873,7 +896,9 @@ def main():
             'Pi_shuffled_mean': round(r['mean_shuffled'], 6),
             'z_score': round(r['z_score'], 2),
             'p_value': r['p_value'] if r['p_value'] > 0 else f'<{1/N_PERM:.0e}',
-            'Significant': 'Yes' if r['p_value'] < 0.05 else 'No',
+            'Unadjusted_p_lt_0_05': (
+                'Yes' if r['p_value'] < 0.05 else 'No'
+            ),
         })
     pd.DataFrame(rows3).to_csv(os.path.join(OUT_DIR, 'table3_permutation.csv'), index=False)
 
@@ -885,7 +910,7 @@ def main():
         generate_figures()
 
 
-    # ── Transform-window sensitivity analysis (FRED_API_KEY required) ──
+    # ── Legacy ST15 alternate reconstruction audit (FRED_API_KEY required) ──
     repo_root = os.path.dirname(os.path.abspath(__file__))
     fred_api_key = os.environ.get('FRED_API_KEY', '')
 
@@ -896,14 +921,14 @@ def main():
         (
             'ST15',
             os.path.join(repo_root, 'sensitivity', 'sensitivity_delta_k.py'),
-            'Transform window sensitivity (k = 1,3,5,10,20)',
+            'Legacy alternate live-FRED reconstruction (k = 1,3,5,10,20)',
             'table_ST15_delta_k_sensitivity.csv',
         ),
     ]
 
     if any(os.path.exists(script) for _, script, _, _ in sensitivity_jobs):
         print(f'\n\n{"━" * 74}')
-        print('  TRANSFORM-WINDOW SENSITIVITY ANALYSIS')
+        print('  LEGACY ST15 ALTERNATE RECONSTRUCTION AUDIT')
         print(f'{"━" * 74}')
 
     for label, script, description, output_name in sensitivity_jobs:
@@ -969,20 +994,18 @@ def main():
                     and r['mult']['sep'] >= r['max']['sep'])
     sig_count = sum(1 for r in r3.values() if r['p_value'] < 0.05)
 
-    p_values = [max(r['p_value'], 1/N_PERM) for r in r3.values()]
-    chi2 = -2 * sum(np.log(p) for p in p_values)
-    fisher_p = 1 - scipy_stats.chi2.cdf(chi2, df=2*len(p_values))
-
     print(f'\n\n{"╔" + "═" * 73 + "╗"}')
     print(f'{"║  FINAL SUMMARY":<74}{"║"}')
     print(f'{"╚" + "═" * 73 + "╝"}')
     print(f'  1. Original-window cumulative ratio > 1.0: {above_one}/5 selected cases')
     print(f'  2. Three-formulation comparison: multiplicative highest in {mult_wins}/5')
-    print(f'  3. Permutation test: {sig_count}/5 significant (p < 0.05)')
-    print(f'  4. Exploratory patterns: three labels assigned')
+    print(
+        '  3. Legacy original-window channel-alignment diagnostic: '
+        f'{sig_count}/5 unadjusted p < 0.05'
+    )
+    print('  4. Legacy audit: retrospective pattern labels retained; not revised evidence')
     if r5:
         print(f'  5. Legacy SVB feasibility audit: {r5["sep"]:.1f}x (not revised evidence)')
-    print(f'\n  Fisher combined p-value: {fisher_p:.2e}')
     print('  Retrospective characterization completed for five selected cases')
 
     # Summary text
@@ -991,16 +1014,29 @@ def main():
         f.write('=' * 50 + '\n\n')
         f.write(f'1. Original-window cumulative ratio > 1.0: {above_one}/5 selected cases\n')
         f.write(f'2. Three-formulation comparison: multiplicative highest in {mult_wins}/5\n')
-        f.write(f'3. Permutation test: {sig_count}/5 significant (p < 0.05)\n')
-        f.write('4. Exploratory patterns: three labels assigned\n')
+        f.write(
+            '3. Legacy original-window channel-alignment diagnostic: '
+            f'{sig_count}/5 unadjusted p < 0.05\n'
+        )
+        f.write('4. Legacy audit: retrospective pattern labels retained; not revised evidence\n')
         if r5:
             f.write(f'5. Legacy SVB feasibility audit: {r5["sep"]:.1f}x (not revised evidence)\n')
-        f.write(f'\nFisher combined p-value: {fisher_p:.2e}\n')
         f.write('Interpretation: retrospective characterization of five selected cases; not universal validation or prospective prediction.\n')
-        f.write(f'\nSupplementary: S1 (P-limit), S2 (Perturbation), S4 (Non-redundancy)\n')
-        f.write('Sensitivity: Transform-window analysis retained; matched-pipeline analysis excluded from the revised evidentiary package and retained only for audit reproducibility.\n')
+        f.write(
+            '\nActive supporting diagnostics: S4 control-window '
+            'correlations, post-control variable substitution, '
+            'additional-case metric alignment, and specification '
+            'provenance.\n'
+        )
+        f.write(
+            'Legacy audits retained for reproducibility but excluded '
+            'from revised evidence: retrospective pattern labels and '
+            'threshold grid, S1 scale invariance, S2 perturbation, '
+            'ST15 transform-window reconstruction, and ST17 '
+            'trajectory analyses.\n'
+        )
         if args.figures:
-            f.write(f'Figures: 6 publication figures (300 dpi PNG + PDF)\n')
+            f.write(f'Figures: 6 historical audit figures (300 dpi PNG + PDF)\n')
 
     print(f'\n  Results saved to {OUT_DIR}/')
     print()
