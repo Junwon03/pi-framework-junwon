@@ -506,8 +506,8 @@ def _plot_2008_retrospective():
     ax = axes[0]
     ax.plot(cr.index, cr['stress_rolling'], color='#2c3e50', lw=1.2,
             label='90-day rolling S̅(t)')
-    ax.axhline(thresh_2s, color='#e67e22', ls='--', lw=0.8, label='2σ threshold')
-    ax.axhline(thresh_3s, color='#e74c3c', ls='--', lw=0.8, label='3σ threshold')
+    ax.axhline(thresh_2s, color='#e67e22', ls='--', lw=0.8, label='2σ control benchmark')
+    ax.axhline(thresh_3s, color='#e74c3c', ls='--', lw=0.8, label='3σ control benchmark')
     ax.axvline(LEHMAN, color='#c0392b', lw=1.5, alpha=0.7,
                label='Lehman Brothers (Sep 15, 2008)')
     ax.axvline(BEAR_STEARNS, color='#8e44ad', lw=1, alpha=0.5, ls=':',
@@ -515,7 +515,7 @@ def _plot_2008_retrospective():
     ax.axvline(BNP_PARIBAS, color='#27ae60', lw=1, alpha=0.5, ls=':',
                label='BNP Paribas freeze (Aug 9, 2007)')
     ax.axvline(first_2s, color='#e67e22', lw=1, alpha=0.7, ls='-.',
-               label=f'First 2σ ({first_2s.strftime("%b %d, %Y")})')
+               label=f'First crossing of 2σ benchmark ({first_2s.strftime("%b %d, %Y")})')
     ax.set_ylabel('Rolling mean stress S̅(t)')
     ax.set_title('a  Retrospective stress trajectory: 2008 Financial Crisis',
                  fontweight='bold', loc='left')
@@ -539,7 +539,7 @@ def _plot_2008_retrospective():
 
     ax.set_ylabel('Cumulative Π(t)')
     ax.set_xlabel('Date')
-    ax.set_title('b  Cumulative damage integral Π(t)', fontweight='bold', loc='left')
+    ax.set_title('b  Cumulative normalized-stress exposure Π(t)', fontweight='bold', loc='left')
     ax.set_xlim(cr.index[0], cr.index[-1])
     ax.xaxis.set_major_formatter(DateFormatter('%Y-%m'))
 

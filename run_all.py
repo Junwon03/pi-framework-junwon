@@ -633,12 +633,12 @@ def generate_figures():
         ax = axes[i]
         cr, ct = load_case(name)
         dt_cr, dt_ct = estimate_dt(cr), estimate_dt(ct)
-        ax.plot(cr.index, cum_pi(cr, dt_cr), color=C['crisis'], lw=1.2, label='Crisis')
+        ax.plot(cr.index, cum_pi(cr, dt_cr), color=C['crisis'], lw=1.2, label='Full event window')
         ax.plot(ct.index, cum_pi(ct, dt_ct), color=C['control'], lw=1.2, label='Control')
         collapse = collapse_dates[name]
         if cr.index[0] <= collapse <= cr.index[-1]:
             ax.axvline(collapse, color='#2c3e50', linestyle='--', linewidth=0.8,
-                       alpha=0.7, label='Collapse date')
+                       alpha=0.7, label='Reference date')
         ax.set_ylabel('Π(t)')
         ax.set_title(label, fontsize=FS+1, fontweight='bold', loc='left')
         ax.text(-0.08, 1.05, chr(97+i), transform=ax.transAxes,
@@ -741,13 +741,18 @@ def generate_figures():
         ax.fill_between(days, 0, pi_norm, alpha=0.3, color=color, zorder=2)
         ax.plot(days, pi_norm, color=color, lw=1.2, zorder=3)
         ax.axhline(0.1, color='grey', ls=':', lw=0.8, alpha=0.7)
+        if i == 0:
+            ax.text(0.03, 0.115, '10% threshold', transform=ax.transAxes,
+                    ha='left', va='bottom', fontsize=FS-2, color='grey')
         ax.set_title(f'{name}\n({mode})', fontsize=FS, fontweight='bold', color=color)
-        ax.text(0.95, 0.55, f'{pct:.0f}%\n@collapse', transform=ax.transAxes,
-                ha='right', va='center', fontsize=FS-2, color=color, fontweight='bold')
-        if i == 0: ax.set_ylabel('Π(t) / Π_max')
-        ax.set_xlabel('Days'); ax.set_ylim(0, 1.05)
+        ax.text(0.96, 0.88, f'{pct:.0f}% at\nreference date', transform=ax.transAxes,
+                ha='right', va='top', fontsize=FS-2, color=color, fontweight='bold',
+                bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.7, edgecolor='none'))
+        if i == 0: ax.set_ylabel('Π(t) / Π_end')
+        ax.set_ylim(0, 1.05)
         ax.text(-0.15, 1.12, chr(97+i), transform=ax.transAxes,
                 fontsize=PL, fontweight='bold', va='top')
+    fig.supxlabel('Days', fontsize=FS+1)
     fig.savefig(os.path.join(fig_dir, 'Figure5_failure_modes.png'), dpi=DPI)
     fig.savefig(os.path.join(fig_dir, 'Figure5_failure_modes.pdf'))
     plt.close(fig); print('    ✅')
