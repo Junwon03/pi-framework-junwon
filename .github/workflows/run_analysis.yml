@@ -76,6 +76,15 @@ jobs:
       - name: Generate legacy ST17 trajectory audit
         run: python run_method_comparison.py
 
+      - name: Generate revised manuscript figures
+        run: python scripts/make_nonoverlap_figures.py
+
+      - name: Generate revised supplementary channel-ablation figure
+        run: python scripts/make_benchmark_revised.py
+
+      - name: Assemble final submission figure set
+        run: python scripts/assemble_submission_figures.py
+
       - name: Verify classified deterministic artifacts against golden baseline
         run: python scripts/verify_outputs.py
 
@@ -86,3 +95,10 @@ jobs:
           path: |
             output/
             data/
+
+      - name: Upload final submission figures
+        uses: actions/upload-artifact@v4
+        with:
+          name: submission-figures
+          path: output/figures/submission/
+          if-no-files-found: error
