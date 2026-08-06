@@ -93,7 +93,7 @@ for ax, (panel_letter, panel_title, methods) in zip(axes, PANELS):
             vals.append(float(subset["Post_control_to_control_mean_ratio"].iloc[0]))
 
         offset = (j - 1) * width
-        ax.bar(
+        bars = ax.bar(
             x + offset,
             vals,
             width=width,
@@ -103,6 +103,45 @@ for ax, (panel_letter, panel_title, methods) in zip(axes, PANELS):
             label=METHOD_LABELS[method],
             zorder=3,
         )
+
+        # Show every value; fixed point offsets remain stable on the log axis.
+        for case, bar, value in zip(CASE_ORDER, bars, vals):
+            value = float(value)
+            x_pos = bar.get_x() + bar.get_width() / 2
+
+            if case == "Supply Chain" and method == "psi x omega":
+                label = "18.98"
+            elif value >= 1000:
+                label = f"{value:,.0f}"
+            elif value >= 100:
+                label = f"{value:.0f}"
+            elif value >= 10:
+                label = f"{value:.1f}"
+            else:
+                label = f"{value:.2f}"
+
+            # Values below 1 are labeled just above the y=1 reference line.
+            label_y = 1.12 if value < 1 else value
+            y_offset = 2 if value < 1 else 3
+
+            ax.annotate(
+                label,
+                xy=(x_pos, label_y),
+                xytext=(0, y_offset),
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+                fontsize=4.5,
+                rotation=0,
+                clip_on=False,
+                zorder=6,
+                bbox=dict(
+                    facecolor="white",
+                    edgecolor="none",
+                    alpha=0.85,
+                    pad=0.15,
+                ),
+            )
 
     ax.axhline(1, color="#666666", linestyle="--", linewidth=0.8, zorder=2)
     ax.set_yscale("log")
@@ -133,8 +172,8 @@ fig.suptitle(
 
 fig.subplots_adjust(left=0.12, right=0.995, top=0.95, bottom=0.08, hspace=0.42)
 
-png = OUT_DIR / "Figure_benchmark_revised.png"
-pdf = OUT_DIR / "Figure_benchmark_revised.pdf"
+png = OUT_DIR / "Supplementary_Figure_S1_channel_ablation_revised.png"
+pdf = OUT_DIR / "Supplementary_Figure_S1_channel_ablation_revised.pdf"
 fig.savefig(png, dpi=300, bbox_inches="tight", facecolor="white")
 fig.savefig(pdf, bbox_inches="tight", facecolor="white")
 plt.close(fig)

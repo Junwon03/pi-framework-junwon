@@ -153,7 +153,7 @@ def figure_3():
 
     fig, ax = plt.subplots(figsize=(7.08, 3.35))
 
-    ax.bar(
+    bars_mult = ax.bar(
         x - width,
         pivot["Multiplicative"],
         width,
@@ -163,7 +163,7 @@ def figure_3():
         linewidth=0.6,
         zorder=3,
     )
-    ax.bar(
+    bars_add = ax.bar(
         x,
         pivot["Additive"],
         width,
@@ -173,7 +173,7 @@ def figure_3():
         linewidth=0.6,
         zorder=3,
     )
-    ax.bar(
+    bars_max = ax.bar(
         x + width,
         pivot["Maximum"],
         width,
@@ -183,6 +183,26 @@ def figure_3():
         linewidth=0.6,
         zorder=3,
     )
+
+    # Numeric labels preserve distinctions that are visually compressed
+    # near the reference value of 1 on the logarithmic axis.
+    for bars in (bars_mult, bars_add, bars_max):
+        for bar in bars:
+            value = float(bar.get_height())
+            x_pos = bar.get_x() + bar.get_width() / 2
+            label = f"{value:,.0f}" if value >= 100 else f"{value:.2f}"
+
+            ax.annotate(
+                label,
+                xy=(x_pos, value),
+                xytext=(0, 3),
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+                fontsize=6.2,
+                clip_on=False,
+                zorder=5,
+            )
 
     ax.axhline(1, color="#666666", linestyle="--", linewidth=0.8, zorder=2)
     ax.set_yscale("log")
@@ -263,6 +283,31 @@ def figure_4():
             zorder=4,
         )
 
+        independent_label = (
+            f"{independent_p:.4f}"
+            if independent_p < 0.001
+            else f"{independent_p:.3f}"
+        )
+        independent_offset = 11 if 0.03 <= independent_p <= 0.08 else 6
+
+        ax.annotate(
+            independent_label,
+            xy=(0, independent_p),
+            xytext=(0, independent_offset),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=5.8,
+            color=RED,
+            zorder=6,
+            bbox=dict(
+                facecolor="white",
+                edgecolor="none",
+                alpha=0.90,
+                pad=0.15,
+            ),
+        )
+
         if not blocks.empty:
             block_x = np.arange(1, len(blocks) + 1)
             block_p = blocks["p_value_plus_one"].to_numpy()
@@ -282,6 +327,32 @@ def figure_4():
                 s=34,
                 zorder=4,
             )
+
+            for x_pos, p_value in zip(block_x, block_p):
+                block_label = (
+                    f"{p_value:.4f}"
+                    if p_value < 0.001
+                    else f"{p_value:.3f}"
+                )
+                block_offset = 11 if 0.03 <= p_value <= 0.08 else 6
+
+                ax.annotate(
+                    block_label,
+                    xy=(x_pos, p_value),
+                    xytext=(0, block_offset),
+                    textcoords="offset points",
+                    ha="center",
+                    va="bottom",
+                    fontsize=5.8,
+                    color=BLUE,
+                    zorder=6,
+                    bbox=dict(
+                        facecolor="white",
+                        edgecolor="none",
+                        alpha=0.90,
+                        pad=0.15,
+                    ),
+                )
 
             x_positions.extend(block_x.tolist())
             x_labels.extend(
@@ -309,14 +380,15 @@ def figure_4():
             pad=5,
         )
         ax.text(
-            0.02,
-            0.96,
+            -0.10,
+            1.03,
             chr(97 + index),
             transform=ax.transAxes,
             fontsize=9,
             fontweight="bold",
             ha="left",
-            va="top",
+            va="bottom",
+            clip_on=False,
         )
         ax.grid(
             axis="y",

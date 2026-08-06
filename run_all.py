@@ -579,12 +579,13 @@ def generate_figures():
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         import matplotlib.ticker as mticker
+        import matplotlib.dates as mdates
     except ImportError:
         print('  ⚠ matplotlib not installed. Skipping figures.')
         print('  Install with: pip install matplotlib')
         return
 
-    fig_dir = os.path.join(OUT_DIR, 'figures')
+    fig_dir = os.path.join(OUT_DIR, 'figures', 'legacy')
     os.makedirs(fig_dir, exist_ok=True)
 
     DPI = 300
@@ -635,6 +636,20 @@ def generate_figures():
         dt_cr, dt_ct = estimate_dt(cr), estimate_dt(ct)
         ax.plot(cr.index, cum_pi(cr, dt_cr), color=C['crisis'], lw=1.2, label='Full event window')
         ax.plot(ct.index, cum_pi(ct, dt_ct), color=C['control'], lw=1.2, label='Control')
+
+        if name == '2008 Financial':
+            overlap_start = max(cr.index.min(), ct.index.min())
+            overlap_end = min(cr.index.max(), ct.index.max())
+            ax.axvspan(
+                overlap_start,
+                overlap_end,
+                color='#78909C',
+                alpha=0.16,
+                linewidth=0,
+                zorder=0,
+                label='Partial overlap (60.5% of control)',
+            )
+
         collapse = collapse_dates[name]
         if cr.index[0] <= collapse <= cr.index[-1]:
             ax.axvline(collapse, color='#2c3e50', linestyle='--', linewidth=0.8,
@@ -645,9 +660,16 @@ def generate_figures():
                 fontsize=PL, fontweight='bold', va='top')
         if i == 0:
             ax.legend(loc='upper left', frameon=False)
-        ax.xaxis.set_major_locator(mticker.MaxNLocator(6))
-        for t in ax.get_xticklabels():
-            t.set_rotation(30); t.set_ha('right')
+        locator = mdates.AutoDateLocator(
+            minticks=4,
+            maxticks=6,
+            interval_multiples=True,
+        )
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
+        ax.tick_params(axis='x', labelrotation=30)
+        for tick in ax.get_xticklabels():
+            tick.set_ha('right')
     fig.savefig(os.path.join(fig_dir, 'Figure1_Pi_timeseries.png'), dpi=DPI)
     fig.savefig(os.path.join(fig_dir, 'Figure1_Pi_timeseries.pdf'))
     plt.close(fig); print('    ✅')
@@ -744,7 +766,13 @@ def generate_figures():
         if i == 0:
             ax.text(0.03, 0.115, '10% threshold', transform=ax.transAxes,
                     ha='left', va='bottom', fontsize=FS-2, color='grey')
-        ax.set_title(f'{name}\n({mode})', fontsize=FS, fontweight='bold', color=color)
+        display_mode = 'Preloaded' if mode == 'Pre-loaded' else mode
+        ax.set_title(
+            f'{name}\n({display_mode})',
+            fontsize=FS,
+            fontweight='bold',
+            color=color,
+        )
         ax.text(0.96, 0.88, f'{pct:.0f}% at\nreference date', transform=ax.transAxes,
                 ha='right', va='top', fontsize=FS-2, color=color, fontweight='bold',
                 bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.7, edgecolor='none'))
@@ -757,59 +785,7 @@ def generate_figures():
     fig.savefig(os.path.join(fig_dir, 'Figure5_failure_modes.pdf'))
     plt.close(fig); print('    ✅')
 
-    # ── FIGURE 6: Sensitivity Diagnostics ──
-    print('  Figure 6: Sensitivity Diagnostics...')
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7.08, 3.0), constrained_layout=True)
-
-    s1_path = os.path.join(OUT_DIR, 'table_S1_plimit_sensitivity.csv')
-    if os.path.exists(s1_path):
-        s1 = pd.read_csv(s1_path)
-        pct_colors = ['#E3F2FD', '#90CAF9', '#42A5F5', '#1565C0']
-        x = np.arange(5); w = 0.18
-        for j, pct in enumerate(['P95', 'P97.5', 'P99', 'P99.5']):
-            vals = [s1[(s1['Case']==c) & (s1['Percentile']==pct)]['Separation'].values[0]
-                    for c in cases_list]
-            ax1.bar(x + j*w - 1.5*w, vals, w, label=pct,
-                    color=pct_colors[j], edgecolor='white', zorder=3)
-        ax1.set_xticks(x)
-        ax1.set_xticklabels([c.replace(' ', '\n') for c in cases_list], fontsize=FS-2)
-        ax1.set_ylabel('Separation Ratio (×)')
-        ax1.set_yscale('log'); ax1.set_ylim(1, 10000)
-        ax1.legend(frameon=False, fontsize=FS-2, ncol=2)
-        ax1.set_title('P-limit Sensitivity', fontsize=FS+1, fontweight='bold')
-        ax1.grid(axis='y', alpha=0.3, zorder=0)
-    else:
-        ax1.text(0.5, 0.5, 'Run with --all first', transform=ax1.transAxes, ha='center')
-    ax1.text(-0.12, 1.05, 'a', transform=ax1.transAxes,
-             fontsize=PL, fontweight='bold', va='top')
-
-    s2_path = os.path.join(OUT_DIR, 'table_S2_variable_robustness.csv')
-    if os.path.exists(s2_path):
-        s2 = pd.read_csv(s2_path)
-        vc = ['#EF5350', '#FFA726', '#66BB6A']
-        vn = ['ρ (Fed Funds Rate)', 'Ψ (TED Spread)', 'Ω (Bank Credit)']
-        vl = ['ρ (Fed Funds)', 'Ψ (TED Spread)', 'Ω (Bank Credit)']
-        x2 = np.arange(4); w2 = 0.22
-        for j, (n, l) in enumerate(zip(vn, vl)):
-            vals = s2[s2['Perturbed_Variable']==n]['Separation'].values
-            ax2.bar(x2 + j*w2 - w2, vals, w2, label=l,
-                    color=vc[j], edgecolor='white', zorder=3)
-        ax2.axhline(18.6, color='grey', ls='--', lw=1, alpha=0.7, label='Baseline (18.6×)')
-        ax2.set_xticks(x2); ax2.set_xticklabels(['10%', '20%', '30%', '50%'])
-        ax2.set_xlabel('Noise Level (% of σ)')
-        ax2.set_ylabel('Separation Ratio (×)')
-        ax2.set_ylim(17, 20)
-        ax2.legend(frameon=False, fontsize=FS-2, ncol=2)
-        ax2.set_title('Variable Perturbation (2008)', fontsize=FS+1, fontweight='bold')
-        ax2.grid(axis='y', alpha=0.3, zorder=0)
-    else:
-        ax2.text(0.5, 0.5, 'Run with --all first', transform=ax2.transAxes, ha='center')
-    ax2.text(-0.12, 1.05, 'b', transform=ax2.transAxes,
-             fontsize=PL, fontweight='bold', va='top')
-
-    fig.savefig(os.path.join(fig_dir, 'Figure6_robustness.png'), dpi=DPI)
-    fig.savefig(os.path.join(fig_dir, 'Figure6_robustness.pdf'))
-    plt.close(fig); print('    ✅')
+    # Figure 6 was withdrawn from the revised submission and is not generated.
 
     print(f'\n  All figures saved to {fig_dir}/')
     for f in sorted(os.listdir(fig_dir)):

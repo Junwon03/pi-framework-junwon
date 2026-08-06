@@ -36,7 +36,7 @@ _base = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(_base, "data")
 
 OUTPUT_DIR = os.path.join(_base, "output")
-FIG_DIR = os.path.join(OUTPUT_DIR, "figures")
+FIG_DIR = os.path.join(OUTPUT_DIR, "figures", "legacy")
 os.makedirs(FIG_DIR, exist_ok=True)
 
 np.random.seed(42)
@@ -544,10 +544,10 @@ def _plot_2008_retrospective():
     ax.xaxis.set_major_formatter(DateFormatter('%Y-%m'))
 
     plt.tight_layout()
-    plt.savefig(f"{FIG_DIR}/Figure7_retrospective_trajectory.pdf", bbox_inches='tight', dpi=300)
-    plt.savefig(f"{FIG_DIR}/Figure7_retrospective_trajectory.png", bbox_inches='tight', dpi=200)
+    plt.savefig(f"{FIG_DIR}/Supplementary_Figure_S2_retrospective_trajectory.pdf", bbox_inches='tight', dpi=300)
+    plt.savefig(f"{FIG_DIR}/Supplementary_Figure_S2_retrospective_trajectory.png", bbox_inches='tight', dpi=200)
     plt.close()
-    print(f"  → Saved: Figure7_retrospective_trajectory.pdf/.png")
+    print(f"  → Saved: Supplementary_Figure_S2_retrospective_trajectory.pdf/.png")
 
 
 # ═══════════════════════════════════════════════════════════════
