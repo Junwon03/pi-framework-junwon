@@ -19,6 +19,18 @@ python run_specification_provenance.py
 python scripts/verify_outputs.py
 ```
 
+Generate the final manuscript figure set:
+
+```bash
+python run_all.py --all
+python scripts/make_nonoverlap_figures.py
+python scripts/make_benchmark_revised.py
+python run_method_comparison.py
+python scripts/assemble_submission_figures.py
+```
+
+The final submission files are assembled in `output/figures/submission/`. The seven-figure set contains Figures 1 and 5 from the original-window pipeline, revised non-overlap Figures 2–4, revised Supplementary Figure S1, and the 2008 ST17 trajectory illustration as Supplementary Figure S2. Figure 6 is withdrawn and is not assembled. Legacy versions of Figures 2–4 remain available as audit outputs but are excluded from the final submission set.
+
 The 2008 variable-substitution diagnostic additionally requires the frozen FRED vintage:
 
 ```bash
@@ -27,10 +39,9 @@ export FRED_VINTAGE_DATE="2026-02-17"
 python run_variable_substitution.py
 ```
 
-The following commands reproduce historical or legacy audit artifacts. Their deterministic CSV/TXT outputs remain versioned and hash-checked; generated figures are excluded from deterministic hash verification because rendering metadata can vary by environment. All are excluded from the revised evidentiary package:
+The following additional commands reproduce historical or legacy audit artifacts beyond the retained submission figures above. Their deterministic CSV/TXT outputs remain versioned and hash-checked; generated figures are excluded from deterministic hash verification because rendering metadata can vary by environment:
 
 ```bash
-python run_all.py --all
 python run_benchmark.py
 python run_v12_enhancements.py
 python run_v13_enhancements.py
@@ -63,7 +74,7 @@ python scripts/verify_outputs.py
 
 ### Legacy audit artifacts
 
-Original-window cumulative tables and permutations, retrospective pattern labels and their threshold grid, S1 scale invariance, S2 perturbation, ST15 alternate reconstruction, ST16 method comparisons, ST17 trajectories, and earlier enhancement tables are retained for reproducibility but excluded from the revised evidentiary package.
+Original-window cumulative tables and permutations, retrospective pattern labels and their threshold grid, historical scale-invariance and perturbation outputs, ST15 alternate reconstruction, ST16 method comparisons, ST17 trajectories, and earlier enhancement tables are retained for reproducibility but excluded from the revised evidentiary package. The ST17 trajectory remains a retrospective audit analysis, while its 2008 illustration is included in the submission as Supplementary Figure S2.
 
 The study is a retrospective characterization of five selected cases. It does not establish universal validation, prospective prediction, calibrated false-alarm performance, causal channel roles, or population-level cross-domain generalization.
 
@@ -85,7 +96,15 @@ The four active supporting artifacts are:
 
 `table_S4_nonredundancy.csv` retains its historical filename for compatibility; its current contents are descriptive control-window correlations without a pass/fail rule.
 
-All other generated CSV/TXT files are retained as legacy audit artifacts and remain versioned and hash-checked. Historical figures are also retained as legacy audit artifacts but are excluded from deterministic hash verification because rendering metadata can vary by environment. These artifacts are excluded from the revised evidentiary package.
+All other generated CSV/TXT files are retained as legacy audit artifacts and remain versioned and hash-checked. Historical figures are retained as reproducible audit outputs but are excluded from deterministic hash verification because rendering metadata can vary by environment. Inclusion of a figure in the assembled submission package does not change the evidentiary classification of its underlying analysis.
+
+### Figure output structure
+
+- `output/figures/legacy/` — original-window and audit figures. Figures 1 and 5 and Supplementary Figure S2 are selected for the submission set.
+- `output/figures/revised/` — revised non-overlap Figures 2–4 and revised channel-ablation Supplementary Figure S1.
+- `output/figures/submission/` — the assembled seven-figure manuscript set in PNG and PDF formats, plus `SUBMISSION_MANIFEST.md`.
+
+Generated figure outputs are reproducible build artifacts and are not part of the deterministic golden-hash baseline.
 
 The verifier classifies 50 deterministic artifacts: 4 revised-primary outputs, 4 active supporting outputs, 26 legacy-audit outputs, and 16 frozen input files.
 
@@ -149,7 +168,9 @@ The three normalized channels each enter the product once with unit exponent. Th
 - **Frozen API vintage**: CI fixes FRED realtime window via `FRED_VINTAGE_DATE=2026-02-17`.
 - **Golden baseline verification**: CI compares generated `output/*.csv`, `output/*.txt`, and `data/*.csv` against `golden/` reference files using SHA-256.
 - **Secrets required**: `FRED_API_KEY` must be configured in GitHub Actions secrets for full pipeline.
-- **GitHub Actions**: Full pipeline runs in CI and uploads `pi-analysis-results` artifact after reproducibility verification.
+- **GitHub Actions**: The full pipeline runs in CI, verifies deterministic artifacts, generates the revised manuscript figures, assembles the final submission package, and uploads two artifacts:
+  - `pi-analysis-results` — full analysis, data, and audit outputs
+  - `submission-figures` — the final seven-figure submission package
 
 **Note on pi column in CSV data files:** The `pi` column in `data/` CSV files is recomputed at runtime by `run_all.py` using `stress × dt` (dt=1/365 for daily, dt=1/12 for monthly). Raw observations (rho, psi, omega, rho_norm, psi_norm, omega_norm, stress) are unchanged from original computation. The 2008 case CSV was originally generated with dt=1/252 by `pi_calculator.py`, but `run_all.py` overrides this with dt=1/365 for consistency with other cases. This has no effect on any reported ratio or test statistic.
 
@@ -184,39 +205,47 @@ Note: Proxy series (e.g., HYG/LQD fallback) exist only as contingency logic in d
 ## Repository Structure
 
 ```
-├── .github/workflows/run_analysis.yml  # Locked CI pipeline + baseline verification
-├── Cases/                          # Individual case data generation scripts
-│   ├── config.py                   #   2008 case configuration
-│   ├── data_fetcher.py             #   FRED data fetcher (requires API key)
-│   ├── pi_calculator.py            #   Core Π calculator (standalone dt=1/252)
-│   ├── main.py                     #   2008 case standalone pipeline
-│   ├── case2_terra_luna.py         #   Terra-Luna data collection + calculation
-│   ├── case3_fukushima.py          #   Fukushima data collection + calculation
-│   ├── case4_covid.py              #   COVID-19 data collection + calculation
-│   ├── case5_supply_chain.py       #   Supply Chain data collection + calculation
-│   └── visualize.py                #   Plotting utilities
-├── data/                           # Frozen primary and additional-case CSV inputs (16 files)
-├── sensitivity/                    # Sensitivity analyses
-│   ├── sensitivity_delta_k.py      #   Legacy ST15 alternate reconstruction audit
-│   └── sensitivity_matched_pipeline.py  # Legacy audit-only analysis; excluded from revised evidence
-├── run_all.py                      # Legacy original-window and audit artifact generator
-├── run_benchmark.py                # Channel ablation (ST4)
-├── run_v12_enhancements.py         # Legacy block-permutation and correlation diagnostics
-├── run_v13_enhancements.py         # Sliding window + additional cases (ST10-12)
-├── run_nonoverlap_reanalysis.py    # Post-control comparison, ablations, and permutation diagnostics
-├── run_threshold_grid.py           # Legacy retrospective-label threshold-grid audit
-├── run_variable_substitution.py    # Active specification-sensitivity diagnostic
-├── run_additional_cases.py         # Additional case computation
+├── .github/workflows/run_analysis.yml  # Locked CI, verification, and submission-figure artifacts
+├── Cases/                              # Individual case data generation scripts
+│   ├── config.py                       #   2008 case configuration
+│   ├── data_fetcher.py                 #   FRED data fetcher (requires API key)
+│   ├── pi_calculator.py                #   Core Π calculator (standalone dt=1/252)
+│   ├── main.py                         #   2008 case standalone pipeline
+│   ├── case2_terra_luna.py             #   Terra-Luna data collection + calculation
+│   ├── case3_fukushima.py              #   Fukushima data collection + calculation
+│   ├── case4_covid.py                  #   COVID-19 data collection + calculation
+│   ├── case5_supply_chain.py           #   Supply Chain data collection + calculation
+│   └── visualize.py                    #   Plotting utilities
+├── data/                               # Frozen primary and additional-case CSV inputs (16 files)
+├── sensitivity/                        # Sensitivity analyses
+│   ├── sensitivity_delta_k.py          #   Legacy ST15 alternate reconstruction audit
+│   └── sensitivity_matched_pipeline.py #   Legacy audit-only analysis; excluded from revised evidence
+├── scripts/
+│   ├── make_nonoverlap_figures.py      # Revised manuscript Figures 2–4
+│   ├── make_benchmark_revised.py       # Revised Supplementary Figure S1
+│   ├── assemble_submission_figures.py  # Assemble final seven-figure submission set
+│   └── verify_outputs.py               # Classified deterministic artifact verifier
+├── run_all.py                          # Original-window and legacy generator; retained Figures 1 and 5
+├── run_benchmark.py                    # Historical channel-ablation audit
+├── run_v12_enhancements.py             # Legacy block-permutation and correlation diagnostics
+├── run_v13_enhancements.py             # Sliding window and additional cases
+├── run_nonoverlap_reanalysis.py        # Post-control comparison, ablations, and permutation diagnostics
+├── run_threshold_grid.py               # Legacy retrospective-label threshold-grid audit
+├── run_variable_substitution.py        # Active specification-sensitivity diagnostic
+├── run_additional_cases.py             # Additional case computation
 ├── run_additional_metric_alignment.py  # Additional-case metric alignment from frozen inputs
-├── run_specification_provenance.py # Retrospective case-variable provenance table
-├── run_method_comparison.py        # Legacy ST17 trajectory and ST16 method audits
-├── requirements-lock.txt           # Pinned Python dependency versions
-├── scripts/verify_outputs.py       # Classified deterministic artifact verifier
-├── golden/                         # Frozen baseline outputs used in CI reproducibility check
-├── Audit report.md                 # Code & data integrity audit results
-├── revision_analysis_decisions.md  # Post-review analysis decision record
-├── LICENSE                         # MIT License
-└── README.md                       # This file
+├── run_specification_provenance.py     # Retrospective case-variable provenance table
+├── run_method_comparison.py            # ST17 trajectory and optional ST16 audit outputs
+├── output/figures/
+│   ├── legacy/                         # Original-window and audit figures
+│   ├── revised/                        # Revised manuscript figures
+│   └── submission/                     # Final seven-figure package and manifest
+├── requirements-lock.txt               # Pinned Python dependency versions
+├── golden/                             # Frozen baseline outputs used in CI reproducibility check
+├── Audit report.md                     # Code and data integrity audit results
+├── revision_analysis_decisions.md      # Post-review analysis decision record
+├── LICENSE                             # MIT License
+└── README.md                           # This file
 ```
 
 ## AI Disclosure
