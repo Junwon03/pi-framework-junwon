@@ -2,7 +2,4 @@
 __pycache__/
 *.pyc
 /output/
-/[Dd]ata/*_dotcom_pi.csv
-/[Dd]ata/*_repo_pi.csv
-/[Dd]ata/*_thailand_pi.csv
 .DS_Store
