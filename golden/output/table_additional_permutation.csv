@@ -1,4 +1,4 @@
-Case,N,Pi_actual,z_score,p_value,Significant
-2000 Dot-com Crash,204,0.228969,8.44,<1e-04,Yes
-2019 Repo Near-miss,59,0.065556,-2.44,0.9929,No
-2011 Thailand Floods,18,0.019968,-0.17,0.4854,No
+Case,N,Pi_actual,Pi_shuffled_mean,Pi_shuffled_std,z_score,Monte_Carlo_p,Exceedances,B,Seed,Significant
+2000 Dot-com Crash,204,0.228969,0.19892,0.003562,8.44,9.999000099990002e-05,0,10000,42,Yes
+2019 Repo Near-miss,59,0.065556,0.066717,0.000477,-2.44,0.9929007099290071,9929,10000,42,No
+2011 Thailand Floods,18,0.019734,0.02203,0.013474,-0.17,0.4854514548545146,4854,10000,42,No

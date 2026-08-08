@@ -63,27 +63,174 @@ CASES = {
 }
 
 
+DPY_BY_CASE = {
+    '2008 Financial': 365,
+    'Terra-Luna': 365,
+    'Fukushima': 365,
+    'COVID-19': 365,
+    'Supply Chain': 12,
+}
+
+
 # ================================================================
-# UTILITIES (same as run_all.py)
+# UTILITIES
 # ================================================================
 
-def estimate_dt(df):
-    """Estimate time step: 1/365 for daily, 1/12 for monthly."""
-    if len(df) > 1:
-        avg_gap = (df.index[-1] - df.index[0]).days / len(df)
-        return 1.0 / 12 if avg_gap > 20 else 1.0 / 365
-    return 1.0 / 365
+def case_dt(name):
+    if name not in DPY_BY_CASE:
+        raise KeyError(
+            f"No explicit observations-per-year mapping for {name}."
+        )
+
+    dpy = DPY_BY_CASE[name]
+
+    if not np.isfinite(dpy) or dpy <= 0:
+        raise ValueError(
+            f"{name}: observations per year must be positive and finite."
+        )
+
+    return 1.0 / float(dpy)
+
+
+def validate_case_frame(name, role, df):
+    required = {
+        'rho_norm',
+        'psi_norm',
+        'omega_norm',
+        'stress',
+    }
+
+    missing = required - set(df.columns)
+
+    if missing:
+        raise ValueError(
+            f"{name}/{role}: missing required columns "
+            f"{sorted(missing)}."
+        )
+
+    if df.empty:
+        raise ValueError(
+            f"{name}/{role}: empty dataframe."
+        )
+
+    if not isinstance(df.index, pd.DatetimeIndex):
+        raise ValueError(
+            f"{name}/{role}: index must be DatetimeIndex."
+        )
+
+    if df.index.has_duplicates:
+        raise ValueError(
+            f"{name}/{role}: duplicate dates."
+        )
+
+    if not df.index.is_monotonic_increasing:
+        raise ValueError(
+            f"{name}/{role}: dates must be chronological."
+        )
+
+    channels = df[
+        ['rho_norm', 'psi_norm', 'omega_norm']
+    ].to_numpy(dtype=float)
+
+    stress = df['stress'].to_numpy(dtype=float)
+
+    if not np.isfinite(channels).all():
+        raise ValueError(
+            f"{name}/{role}: non-finite normalized channels."
+        )
+
+    if not np.isfinite(stress).all():
+        raise ValueError(
+            f"{name}/{role}: non-finite stress."
+        )
+
+    if (channels < 0).any():
+        raise ValueError(
+            f"{name}/{role}: normalized channels must be nonnegative."
+        )
+
+    if (stress < 0).any():
+        raise ValueError(
+            f"{name}/{role}: stress must be nonnegative."
+        )
+
+    expected_stress = (
+        channels[:, 0]
+        * channels[:, 1]
+        * channels[:, 2]
+    )
+
+    if not np.allclose(
+        stress,
+        expected_stress,
+        rtol=1e-12,
+        atol=1e-12,
+    ):
+        max_diff = float(
+            np.max(
+                np.abs(
+                    stress - expected_stress
+                )
+            )
+        )
+
+        raise ValueError(
+            f"{name}/{role}: stored stress does not equal "
+            "rho_norm*psi_norm*omega_norm; "
+            f"max_abs_diff={max_diff:.12g}."
+        )
 
 
 def load_case(name):
-    """Load crisis and control DataFrames for a given case."""
-    info = CASES[name]
-    cr = pd.read_csv(os.path.join(DATA_DIR, info['crisis']),
-                     index_col=0, parse_dates=True)
-    ct = pd.read_csv(os.path.join(DATA_DIR, info['control']),
-                     index_col=0, parse_dates=True)
-    return cr, ct
+    """Load and validate frozen crisis/control inputs."""
+    if name not in CASES:
+        raise KeyError(
+            f"Unknown benchmark case: {name}"
+        )
 
+    info = CASES[name]
+
+    crisis_path = os.path.join(
+        DATA_DIR,
+        info['crisis'],
+    )
+
+    control_path = os.path.join(
+        DATA_DIR,
+        info['control'],
+    )
+
+    if not os.path.isfile(crisis_path):
+        raise FileNotFoundError(crisis_path)
+
+    if not os.path.isfile(control_path):
+        raise FileNotFoundError(control_path)
+
+    cr = pd.read_csv(
+        crisis_path,
+        index_col=0,
+        parse_dates=True,
+    )
+
+    ct = pd.read_csv(
+        control_path,
+        index_col=0,
+        parse_dates=True,
+    )
+
+    validate_case_frame(
+        name,
+        'crisis',
+        cr,
+    )
+
+    validate_case_frame(
+        name,
+        'control',
+        ct,
+    )
+
+    return cr, ct
 
 # ================================================================
 # BENCHMARK METHODS
@@ -106,36 +253,97 @@ METHODS = [
 ]
 
 
-def calc_separation(cr, ct, stress_fn):
+def calc_separation(name, cr, ct, stress_fn):
     """
-    Calculate crisis/control separation ratio for a given stress function.
+    Calculate crisis/control separation for one channel formulation.
 
-    Parameters
-    ----------
-    cr : DataFrame — crisis period (must have rho_norm, psi_norm, omega_norm)
-    ct : DataFrame — control period
-    stress_fn : callable(rho, psi, omega) -> stress array
-
-    Returns
-    -------
-    dict with pi_crisis, pi_control, separation ratio
+    Cadence is explicit per selected case. Inputs and derived stress
+    arrays must be finite and nonnegative. A nonpositive control
+    integral is undefined and fails closed rather than returning inf.
     """
-    dt_cr = estimate_dt(cr)
-    dt_ct = estimate_dt(ct)
+    dt = case_dt(name)
 
-    s_cr = stress_fn(cr['rho_norm'].values,
-                     cr['psi_norm'].values,
-                     cr['omega_norm'].values)
-    s_ct = stress_fn(ct['rho_norm'].values,
-                     ct['psi_norm'].values,
-                     ct['omega_norm'].values)
+    s_cr = np.asarray(
+        stress_fn(
+            cr['rho_norm'].to_numpy(dtype=float),
+            cr['psi_norm'].to_numpy(dtype=float),
+            cr['omega_norm'].to_numpy(dtype=float),
+        ),
+        dtype=float,
+    )
 
-    pi_cr = np.sum(s_cr * dt_cr)
-    pi_ct = np.sum(s_ct * dt_ct)
-    sep = pi_cr / pi_ct if pi_ct > 0 else float('inf')
+    s_ct = np.asarray(
+        stress_fn(
+            ct['rho_norm'].to_numpy(dtype=float),
+            ct['psi_norm'].to_numpy(dtype=float),
+            ct['omega_norm'].to_numpy(dtype=float),
+        ),
+        dtype=float,
+    )
 
-    return {'pi_crisis': pi_cr, 'pi_control': pi_ct, 'separation': sep}
+    if s_cr.shape != (len(cr),):
+        raise ValueError(
+            f"{name}: crisis stress function returned "
+            f"shape {s_cr.shape}, expected {(len(cr),)}."
+        )
 
+    if s_ct.shape != (len(ct),):
+        raise ValueError(
+            f"{name}: control stress function returned "
+            f"shape {s_ct.shape}, expected {(len(ct),)}."
+        )
+
+    if not np.isfinite(s_cr).all():
+        raise ValueError(
+            f"{name}: crisis derived stress contains non-finite values."
+        )
+
+    if not np.isfinite(s_ct).all():
+        raise ValueError(
+            f"{name}: control derived stress contains non-finite values."
+        )
+
+    if (s_cr < 0).any():
+        raise ValueError(
+            f"{name}: crisis derived stress contains negative values."
+        )
+
+    if (s_ct < 0).any():
+        raise ValueError(
+            f"{name}: control derived stress contains negative values."
+        )
+
+    pi_cr = float(
+        np.sum(s_cr * dt)
+    )
+
+    pi_ct = float(
+        np.sum(s_ct * dt)
+    )
+
+    if not np.isfinite(pi_cr) or pi_cr < 0:
+        raise ValueError(
+            f"{name}: crisis integral is invalid: {pi_cr}."
+        )
+
+    if not np.isfinite(pi_ct) or pi_ct <= 0:
+        raise ValueError(
+            f"{name}: control integral must be positive and finite; "
+            f"got {pi_ct}."
+        )
+
+    sep = pi_cr / pi_ct
+
+    if not np.isfinite(sep):
+        raise ValueError(
+            f"{name}: separation ratio is non-finite."
+        )
+
+    return {
+        'pi_crisis': pi_cr,
+        'pi_control': pi_ct,
+        'separation': sep,
+    }
 
 # ================================================================
 # MAIN BENCHMARK
@@ -173,7 +381,7 @@ def run_benchmark():
         cr, ct = load_case(name)
 
         for method_name, level, stress_fn in METHODS:
-            result = calc_separation(cr, ct, stress_fn)
+            result = calc_separation(name, cr, ct, stress_fn)
             rows.append({
                 'Case': name,
                 'Domain': CASES[name]['domain'],
@@ -185,6 +393,27 @@ def run_benchmark():
             })
 
     df = pd.DataFrame(rows)
+
+    expected_rows = len(CASES) * len(METHODS)
+
+    if len(df) != expected_rows:
+        raise RuntimeError(
+            f"Expected {expected_rows} benchmark rows, got {len(df)}."
+        )
+
+    if df.duplicated(['Case', 'Method']).any():
+        raise RuntimeError(
+            "Duplicate case/method benchmark rows found."
+        )
+
+    numeric = df[
+        ['Pi_crisis', 'Pi_control', 'Separation']
+    ].to_numpy(dtype=float)
+
+    if not np.isfinite(numeric).all():
+        raise ValueError(
+            "Benchmark result table contains non-finite values."
+        )
 
     # ── Console output: Pivot table ──
     print('=' * 90)
@@ -255,8 +484,28 @@ def run_benchmark():
         improvements = []
         for case in case_order:
             alt_sep = df[(df['Case'] == case) & (df['Method'] == method_name)]['Separation'].values[0]
-            if alt_sep > 0:
-                improvements.append(pi_means[case] / alt_sep)
+            if not np.isfinite(alt_sep) or alt_sep <= 0:
+                raise ValueError(
+                    f"{case}/{method_name}: alternative separation "
+                    f"must be positive and finite; got {alt_sep}."
+                )
+
+            improvement = pi_means[case] / alt_sep
+
+            if not np.isfinite(improvement):
+                raise ValueError(
+                    f"{case}/{method_name}: relative separation "
+                    "is non-finite."
+                )
+
+            improvements.append(improvement)
+
+        if len(improvements) != len(case_order):
+            raise RuntimeError(
+                f"{method_name}: expected {len(case_order)} "
+                f"relative comparisons, got {len(improvements)}."
+            )
+
         mean_impr = np.mean(improvements)
         print(f'    vs {method_name:<16}: mean Π/alternative ratio = {mean_impr:>5.1f}×')
 

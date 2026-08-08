@@ -9,7 +9,9 @@ Physics-grounded variable mapping
 # FRED API
 # ============================================================
 import os
-FRED_API_KEY = os.environ.get('FRED_API_KEY', 'YOUR_FRED_API_KEY_HERE')
+
+FRED_API_KEY = os.environ.get("FRED_API_KEY", "")
+FRED_VINTAGE_DATE = os.environ.get("FRED_VINTAGE_DATE", "")
 
 # ============================================================
 # 분석 기간

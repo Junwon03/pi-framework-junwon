@@ -17,17 +17,18 @@ Data Sources:
   - CBOE VIX via Yahoo Finance
   - FRED (Federal Reserve Bank of St. Louis): BAMLH0A0HYM2
 
-의존성: pip install yfinance pandas numpy matplotlib requests fredapi
+의존성: pandas, numpy, matplotlib; archived COVID inputs in data/
 """
 
-import os, sys, time
+import hashlib
+import os
+import sys
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-import requests
-import warnings
-warnings.filterwarnings('ignore')
 
 # COVID financial dislocation: selected event date = 2020-03-23
 # This date is used consistently by the active retrospective analyses.
@@ -48,225 +49,447 @@ PLIMIT_PCT = 99; DPY = 365
 # a separate phenomenon from the acute financial shock analyzed here.
 OUTPUT_DIR = "./output"
 
-FRED_API_KEY = os.environ.get('FRED_API_KEY', '')
+ROOT_DIR = Path(__file__).resolve().parents[1]
 
-# Johns Hopkins CSSE raw data URLs
-JH_CONFIRMED_URL = (
-    "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/"
-    "master/csse_covid_19_data/csse_covid_19_time_series/"
-    "time_series_covid19_confirmed_global.csv"
+FROZEN_CRISIS_PATH = (
+    ROOT_DIR / "data" / "crisis_covid_pi.csv"
 )
+FROZEN_CONTROL_PATH = (
+    ROOT_DIR / "data" / "control_covid_pi.csv"
+)
+
+FROZEN_CRISIS_SHA256 = (
+    "67a48251e96720da2f0c693aa61f0666"
+    "aa6a72288f27576a6061de8ce7d27164"
+)
+FROZEN_CONTROL_SHA256 = (
+    "b047dce647940941ec202924826fc0d4"
+    "a4b7fd7d867cc69fbea51019e319551f"
+)
+
+RAW_COLUMNS = ["rho", "psi", "omega"]
+DERIVED_COLUMNS = [
+    "rho_norm",
+    "psi_norm",
+    "omega_norm",
+    "stress",
+    "pi",
+]
 
 
 class PiCalc:
     def __init__(self):
-        self.dt = 1.0/DPY; self.p = {}
+        if not np.isfinite(DPY) or DPY <= 0:
+            raise ValueError("DPY must be positive and finite.")
+
+        self.dt = 1.0 / float(DPY)
+        self.p = {}
+        self.ok = False
+
     def calibrate(self, r, p, o):
-        rs = r[STABLE_START:STABLE_END].dropna()
-        ps = p[STABLE_START:STABLE_END].dropna()
-        os_ = o[STABLE_START:STABLE_END].dropna()
-        self.p = {k: max(np.percentile(v, PLIMIT_PCT), 1e-10)
-                  for k,v in zip(['r','p','o'],[rs,ps,os_])}
-        print(f"  P_limits: rho={self.p['r']:.4f}, psi={self.p['p']:.4f}, omega={self.p['o']:.4f}")
+        stable = {
+            "r": r[STABLE_START:STABLE_END].dropna(),
+            "p": p[STABLE_START:STABLE_END].dropna(),
+            "o": o[STABLE_START:STABLE_END].dropna(),
+        }
+
+        for name, series in stable.items():
+            if series.empty:
+                raise ValueError(
+                    f"{name}: no observations in COVID calibration period."
+                )
+
+            values = series.to_numpy(dtype=float)
+
+            if not np.isfinite(values).all():
+                raise ValueError(
+                    f"{name}: calibration data contain non-finite values."
+                )
+
+            if (values < 0).any():
+                raise ValueError(
+                    f"{name}: calibration data must be non-negative."
+                )
+
+        limits = {
+            name: float(
+                np.percentile(
+                    series.to_numpy(dtype=float),
+                    PLIMIT_PCT,
+                )
+            )
+            for name, series in stable.items()
+        }
+
+        for name, value in limits.items():
+            if not np.isfinite(value) or value <= 0:
+                raise ValueError(
+                    f"{name}: P_limit must be positive and finite; "
+                    f"got {value}."
+                )
+
+        self.p = limits
+        self.ok = True
+
+        print(
+            f"  P_limits: "
+            f"rho={self.p['r']:.4f}, "
+            f"psi={self.p['p']:.4f}, "
+            f"omega={self.p['o']:.4f}"
+        )
+
         return self.p
+
     def calc(self, r, p, o, s=None, e=None):
-        if s: r,p,o = r[s:],p[s:],o[s:]
-        if e: r,p,o = r[:e],p[:e],o[:e]
-        idx = r.index.intersection(p.index).intersection(o.index)
-        r,p,o = r.reindex(idx),p.reindex(idx),o.reindex(idx)
-        rn=(r/self.p['r']).clip(0); pn=(p/self.p['p']).clip(0); on=(o/self.p['o']).clip(0)
-        st = rn*pn*on; pi = (st*self.dt).cumsum()
-        return pd.DataFrame({'rho':r,'psi':p,'omega':o,
-            'rho_norm':rn,'psi_norm':pn,'omega_norm':on,
-            'stress':st,'pi':pi}, index=idx)
+        if not self.ok:
+            raise RuntimeError(
+                "calibrate() must be called before calc()."
+            )
+
+        if s:
+            r, p, o = r[s:], p[s:], o[s:]
+
+        if e:
+            r, p, o = r[:e], p[:e], o[:e]
+
+        idx = (
+            r.index
+            .intersection(p.index)
+            .intersection(o.index)
+            .sort_values()
+        )
+
+        if len(idx) == 0:
+            raise ValueError("No common COVID observations.")
+
+        if idx.has_duplicates:
+            raise ValueError(
+                "COVID analysis index contains duplicate dates."
+            )
+
+        r = r.reindex(idx)
+        p = p.reindex(idx)
+        o = o.reindex(idx)
+
+        for name, series in {
+            "rho": r,
+            "psi": p,
+            "omega": o,
+        }.items():
+            values = series.to_numpy(dtype=float)
+
+            if not np.isfinite(values).all():
+                raise ValueError(
+                    f"{name}: analysis data contain non-finite values."
+                )
+
+            if (values < 0).any():
+                raise ValueError(
+                    f"{name}: analysis data must be non-negative."
+                )
+
+        rn = r / self.p["r"]
+        pn = p / self.p["p"]
+        on = o / self.p["o"]
+
+        for name, series in {
+            "rho_norm": rn,
+            "psi_norm": pn,
+            "omega_norm": on,
+        }.items():
+            values = series.to_numpy(dtype=float)
+
+            if not np.isfinite(values).all():
+                raise ValueError(
+                    f"{name}: normalized data contain non-finite values."
+                )
+
+            if (values < 0).any():
+                raise ValueError(
+                    f"{name}: normalized data must be non-negative."
+                )
+
+        stress = rn * pn * on
+        stress_values = stress.to_numpy(dtype=float)
+
+        if not np.isfinite(stress_values).all():
+            raise ValueError(
+                "COVID stress contains non-finite values."
+            )
+
+        if (stress_values < 0).any():
+            raise ValueError(
+                "COVID stress must be non-negative."
+            )
+
+        pi = (stress * self.dt).cumsum()
+
+        if not np.isfinite(
+            pi.to_numpy(dtype=float)
+        ).all():
+            raise ValueError(
+                "COVID Pi contains non-finite values."
+            )
+
+        return pd.DataFrame(
+            {
+                "rho": r,
+                "psi": p,
+                "omega": o,
+                "rho_norm": rn,
+                "psi_norm": pn,
+                "omega_norm": on,
+                "stress": stress,
+                "pi": pi,
+            },
+            index=idx,
+        )
+
+def _sha256(path):
+    h = hashlib.sha256()
+
+    with path.open("rb") as f:
+        for chunk in iter(
+            lambda: f.read(1024 * 1024),
+            b"",
+        ):
+            h.update(chunk)
+
+    return h.hexdigest()
 
 
-def fetch_covid_cases():
-    """Johns Hopkins CSSE → Global daily new cases (7-day rolling avg)"""
-    print("\n[1/3] rho: COVID-19 Daily New Cases (Johns Hopkins CSSE)")
-    print("-" * 50)
+def _load_frozen_archive(path, expected_sha, label):
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"Missing frozen COVID {label} archive: {path}"
+        )
 
-    try:
-        print("  Fetching JH CSSE data...", end=" ")
-        resp = requests.get(JH_CONFIRMED_URL, timeout=60)
-        if resp.status_code != 200:
-            print(f"HTTP {resp.status_code}")
-            return None
+    actual_sha = _sha256(path)
 
-        import io
-        df = pd.read_csv(io.StringIO(resp.text))
-        print(f"ok {len(df)} countries/regions")
+    if actual_sha != expected_sha:
+        raise RuntimeError(
+            f"Frozen COVID {label} hash mismatch: "
+            f"expected {expected_sha}, got {actual_sha}"
+        )
 
-        # 날짜 컬럼 추출 (첫 4개는 Province, Country, Lat, Long)
-        date_cols = df.columns[4:]
-        dates = pd.to_datetime(date_cols)
+    frame = pd.read_csv(
+        path,
+        index_col=0,
+        parse_dates=True,
+    )
 
-        # 전 세계 합계
-        global_cumulative = df[date_cols].sum(axis=0)
-        global_cumulative.index = dates
+    required = set(RAW_COLUMNS + DERIVED_COLUMNS)
+    missing = required - set(frame.columns)
 
-        # 일별 신규 확진자
-        daily_new = global_cumulative.diff().clip(lower=0)
+    if missing:
+        raise RuntimeError(
+            f"Frozen COVID {label} archive is missing columns: "
+            f"{sorted(missing)}"
+        )
 
-        # 7일 rolling average (노이즈 제거)
-        rho = daily_new.rolling(7).mean()
+    if frame.empty:
+        raise RuntimeError(
+            f"Frozen COVID {label} archive is empty."
+        )
 
-        # 기간 필터
-        rho = rho[DATA_START:DATA_END]
-        rho.index = rho.index.normalize()
+    if frame.index.has_duplicates:
+        raise RuntimeError(
+            f"Frozen COVID {label} archive has duplicate dates."
+        )
 
-        print(f"  Global new cases (7d avg):")
-        print(f"    2020-01-31: {rho.get(pd.Timestamp('2020-01-31'), 0):.0f}")
-        print(f"    2020-03-11: {rho.get(pd.Timestamp('2020-03-11'), 0):.0f}")
-        print(f"    2020-03-23: {rho.get(pd.Timestamp('2020-03-23'), 0):.0f}")
-        print(f"    Peak: {rho.max():.0f} on {rho.idxmax().strftime('%Y-%m-%d')}")
-        print(f"  rho: {rho.dropna().shape[0]} pts")
-        return rho
+    if not frame.index.is_monotonic_increasing:
+        raise RuntimeError(
+            f"Frozen COVID {label} archive is not chronological."
+        )
 
-    except Exception as e:
-        print(f"err: {e}")
-        return None
+    numeric = frame[
+        RAW_COLUMNS + DERIVED_COLUMNS
+    ].apply(pd.to_numeric, errors="coerce")
 
+    values = numeric.to_numpy(dtype=float)
 
-def fetch_vix():
-    """Yahoo Finance → VIX"""
-    print("\n[2/3] psi: VIX (CBOE Volatility Index)")
-    print("-" * 50)
-    import yfinance as yf
+    if not np.isfinite(values).all():
+        raise RuntimeError(
+            f"Frozen COVID {label} archive contains "
+            "non-finite analysis values."
+        )
 
-    print("  ^VIX...", end=" ")
-    vix = yf.download('^VIX', start=DATA_START, end=DATA_END, progress=False)
-    if vix is None or len(vix) == 0:
-        print("FAIL"); return None
-    if isinstance(vix.columns, pd.MultiIndex):
-        vix.columns = vix.columns.get_level_values(0)
-    vix.index = pd.to_datetime(vix.index).tz_localize(None).normalize()
-    psi = vix['Close']
-    print(f"ok {len(psi)} rows")
+    if (numeric[RAW_COLUMNS].to_numpy(dtype=float) < 0).any():
+        raise RuntimeError(
+            f"Frozen COVID {label} raw channels "
+            "must be non-negative."
+        )
 
-    print(f"  VIX 2020-01-31: {psi.get(pd.Timestamp('2020-01-31'), 0):.2f}")
-    print(f"  VIX 2020-03-16: {psi.get(pd.Timestamp('2020-03-16'), 0):.2f} (record)")
-    print(f"  VIX peak: {psi.max():.2f} on {psi.idxmax().strftime('%Y-%m-%d')}")
-    return psi
-
-
-def fetch_hy_spread():
-    """FRED → ICE BofA US High Yield Index Option-Adjusted Spread"""
-    print("\n[3/3] omega: High Yield Credit Spread (FRED: BAMLH0A0HYM2)")
-    print("-" * 50)
-
-    series_id = "BAMLH0A0HYM2"
-
-    # Try FRED API first
-    if FRED_API_KEY:
-        print("  FRED API...", end=" ")
-        url = (f"https://api.stlouisfed.org/fred/series/observations?"
-               f"series_id={series_id}&api_key={FRED_API_KEY}"
-               f"&file_type=json"
-               f"&observation_start={DATA_START}&observation_end={DATA_END}")
-        try:
-            resp = requests.get(url, timeout=30)
-            if resp.status_code == 200:
-                obs = resp.json().get('observations', [])
-                if len(obs) > 10:
-                    df = pd.DataFrame(obs)
-                    df['date'] = pd.to_datetime(df['date'])
-                    df['value'] = pd.to_numeric(df['value'], errors='coerce')
-                    omega = df.set_index('date')['value'].dropna()
-                    omega.index = omega.index.normalize()
-                    print(f"ok {len(omega)} rows")
-                    return omega
-        except Exception as e:
-            print(f"err: {e}")
-
-    # Fallback: fredapi library
-    try:
-        print("  fredapi library...", end=" ")
-        from fredapi import Fred
-        fred = Fred(api_key=FRED_API_KEY)
-        omega = fred.get_series(series_id, observation_start=DATA_START,
-                                observation_end=DATA_END)
-        omega.index = pd.to_datetime(omega.index).normalize()
-        omega = omega.dropna()
-        print(f"ok {len(omega)} rows")
-        return omega
-    except Exception as e:
-        print(f"err: {e}")
-
-    # Fallback 2: yfinance HYG ETF as proxy
-    print("  Fallback: HYG ETF spread proxy...", end=" ")
-    import yfinance as yf
-
-    hyg = yf.download('HYG', start=DATA_START, end=DATA_END, progress=False)
-    lqd = yf.download('LQD', start=DATA_START, end=DATA_END, progress=False)
-
-    if hyg is not None and lqd is not None and len(hyg) > 10 and len(lqd) > 10:
-        if isinstance(hyg.columns, pd.MultiIndex):
-            hyg.columns = hyg.columns.get_level_values(0)
-        if isinstance(lqd.columns, pd.MultiIndex):
-            lqd.columns = lqd.columns.get_level_values(0)
-        hyg.index = pd.to_datetime(hyg.index).tz_localize(None).normalize()
-        lqd.index = pd.to_datetime(lqd.index).tz_localize(None).normalize()
-
-        # HYG/LQD ratio as credit stress proxy
-        # Lower ratio = higher stress (HY underperforms IG)
-        common = hyg.index.intersection(lqd.index)
-        ratio = hyg['Close'].reindex(common) / lqd['Close'].reindex(common)
-        # Invert: higher = more stress
-        omega = (1 / ratio) * 100  # scale
-        omega = omega.pct_change().abs().rolling(5).mean()  # volatility of ratio
-        print(f"ok {len(omega.dropna())} rows (HYG/LQD proxy)")
-        print("  WARNING: Using ETF proxy, not direct spread data")
-        return omega
-    else:
-        print("FAIL")
-        return None
+    return numeric
 
 
 def fetch():
+    """
+    Load the archived COVID analytical channels.
+
+    These frozen files preserve the originally analyzed
+    JH-CSSE global-case, VIX, and BAMLH0A0HYM2 high-yield
+    spread channels.
+
+    The live FRED source no longer exposes the required
+    historical BAMLH0A0HYM2 period. No semantic proxy
+    substitution is permitted.
+
+    Zero rho values already present in the frozen archive
+    are part of the archived retrospective specification.
+    This loader does not create or impute additional zeros.
+    """
     print("=" * 60)
-    print("  COVID-19: rho=Cases(JH) | psi=VIX | omega=HY Spread")
+    print(
+        "  COVID-19: frozen JH cases | VIX | "
+        "BAMLH0A0HYM2"
+    )
     print("=" * 60)
 
-    rho = fetch_covid_cases()
-    if rho is None: return None
+    crisis_archive = _load_frozen_archive(
+        FROZEN_CRISIS_PATH,
+        FROZEN_CRISIS_SHA256,
+        "crisis",
+    )
 
-    psi = fetch_vix()
-    if psi is None: return None
+    control_archive = _load_frozen_archive(
+        FROZEN_CONTROL_PATH,
+        FROZEN_CONTROL_SHA256,
+        "control",
+    )
 
-    omega = fetch_hy_spread()
-    if omega is None: return None
+    raw = crisis_archive[RAW_COLUMNS].copy()
 
-    # Align: rho(calendar) + omega(business days) → trading days (psi/VIX)
-    print("\n[Align]")
-    trading_days = psi.dropna().index
-    print(f"  Trading days: {len(trading_days)}")
+    expected_control = raw.loc[
+        NEG_CONTROL_START:NEG_CONTROL_END
+    ]
 
-    # rho: calendar → trading days (ffill weekends)
-    rho.index = pd.to_datetime(rho.index).normalize()
-    rho_aligned = rho.reindex(trading_days, method='ffill').fillna(0)
+    actual_control = control_archive[
+        RAW_COLUMNS
+    ]
 
-    # omega: business days → trading days
-    omega.index = pd.to_datetime(omega.index).normalize()
-    omega_aligned = omega.reindex(trading_days, method='ffill')
+    if not expected_control.index.equals(
+        actual_control.index
+    ):
+        raise RuntimeError(
+            "Frozen COVID crisis/control raw-channel "
+            "indices disagree in the control window."
+        )
 
-    psi_aligned = psi.reindex(trading_days)
+    if not np.allclose(
+        expected_control.to_numpy(dtype=float),
+        actual_control.to_numpy(dtype=float),
+        rtol=0.0,
+        atol=0.0,
+    ):
+        raise RuntimeError(
+            "Frozen COVID crisis/control raw channels "
+            "disagree in their overlapping control window."
+        )
 
-    # Debug
-    for d in ['2020-01-31', '2020-03-11', '2020-03-16', '2020-03-23']:
-        ts = pd.Timestamp(d)
-        if ts in trading_days:
-            print(f"  {d}: rho={rho_aligned.get(ts, 0):.0f}, "
-                  f"psi={psi_aligned.get(ts, 0):.2f}, "
-                  f"omega={omega_aligned.get(ts, 0):.4f}")
+    stable_rho = raw.loc[
+        STABLE_START:STABLE_END,
+        "rho",
+    ]
 
-    v = rho_aligned.notna() & psi_aligned.notna() & omega_aligned.notna()
-    f = trading_days[v]
-    print(f"  Final: {len(f)} pts, rho>0: {(rho_aligned.reindex(f) > 0).sum()}")
-    return {'rho': rho_aligned.reindex(f),
-            'psi': psi_aligned.reindex(f),
-            'omega': omega_aligned.reindex(f)}
+    print(
+        f"  Frozen crisis archive: "
+        f"{len(crisis_archive)} rows"
+    )
+    print(
+        f"  Frozen control archive: "
+        f"{len(control_archive)} rows"
+    )
+    print(
+        f"  Calibration rho: "
+        f"{len(stable_rho)} rows, "
+        f"zero={(stable_rho == 0).sum()}, "
+        f"positive={(stable_rho > 0).sum()}"
+    )
 
+    for date in [
+        "2020-01-31",
+        "2020-03-11",
+        "2020-03-16",
+        "2020-03-23",
+    ]:
+        ts = pd.Timestamp(date)
+
+        if ts in raw.index:
+            print(
+                f"  {date}: "
+                f"rho={raw.loc[ts, 'rho']:.0f}, "
+                f"psi={raw.loc[ts, 'psi']:.2f}, "
+                f"omega={raw.loc[ts, 'omega']:.4f}"
+            )
+
+    return {
+        "rho": raw["rho"],
+        "psi": raw["psi"],
+        "omega": raw["omega"],
+    }
+
+
+def validate_reproduction(crisis, control):
+    """
+    Independently confirm that the frozen raw channels and
+    current formulas reproduce the archived derived values.
+    """
+    expected = {
+        "crisis": _load_frozen_archive(
+            FROZEN_CRISIS_PATH,
+            FROZEN_CRISIS_SHA256,
+            "crisis",
+        ),
+        "control": _load_frozen_archive(
+            FROZEN_CONTROL_PATH,
+            FROZEN_CONTROL_SHA256,
+            "control",
+        ),
+    }
+
+    actual = {
+        "crisis": crisis,
+        "control": control,
+    }
+
+    compare_columns = (
+        RAW_COLUMNS + DERIVED_COLUMNS
+    )
+
+    for label in ("crisis", "control"):
+        a = actual[label]
+        e = expected[label]
+
+        if not a.index.equals(e.index):
+            raise RuntimeError(
+                f"COVID {label} reproduction index mismatch."
+            )
+
+        for column in compare_columns:
+            av = a[column].to_numpy(dtype=float)
+            ev = e[column].to_numpy(dtype=float)
+
+            if not np.allclose(
+                av,
+                ev,
+                rtol=1e-12,
+                atol=1e-12,
+            ):
+                max_diff = float(
+                    np.max(np.abs(av - ev))
+                )
+
+                raise RuntimeError(
+                    f"COVID {label} reproduction mismatch "
+                    f"for {column}: "
+                    f"max_abs_diff={max_diff}"
+                )
+
+    print(
+        "  Frozen COVID reproduction: PASS "
+        "(raw channels -> derived outputs)"
+    )
 
 def plot_traj(res, title, cd, path=None):
     plt.rcParams.update({'figure.dpi':150,'font.family':'serif','font.size':11,
@@ -276,7 +499,7 @@ def plot_traj(res, title, cd, path=None):
     c = pd.Timestamp(cd)
     ax[0].plot(res.index, res['pi'], color='#1a1a2e', lw=2, label='Pi(t)')
     ax[0].axvline(x=c, color='red', ls='--', alpha=.8, lw=1.5,
-                  label=f'WHO Pandemic ({cd})')
+                  label=f'Financial dislocation ({cd})')
     m = res['pi'].max()
     if m > 0: ax[0].axhline(y=m*.7, color='orange', ls=':', alpha=.6, label='~70% Pi_max')
     ax[0].set_ylabel('Pi(t)', fontweight='bold')
@@ -310,7 +533,7 @@ def plot_comp(cr, ct, cd, path=None):
     ax[0].plot(cr.index, cr['pi'], color='#c0392b', lw=2)
     ax[0].set_title('Crisis', fontweight='bold')
     ax[0].axvline(x=pd.Timestamp(cd), color='red', ls='--', alpha=.8,
-                  label=f'WHO Pandemic ({cd})'); ax[0].legend()
+                  label=f'Financial dislocation ({cd})'); ax[0].legend()
     ax[1].plot(ct.index, ct['pi'], color='#27ae60', lw=2)
     ax[1].set_title('Negative Control', fontweight='bold')
     ym = max(cr['pi'].max(), ct['pi'].max()) * 1.1
@@ -330,15 +553,36 @@ def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     d = fetch()
-    if not d: print("FAIL"); sys.exit(1)
 
     c = PiCalc()
-    c.calibrate(d['rho'], d['psi'], d['omega'])
+    c.calibrate(
+        d["rho"],
+        d["psi"],
+        d["omega"],
+    )
 
-    cr = c.calc(d['rho'], d['psi'], d['omega'], s=CRISIS_START, e=CRISIS_END)
-    ct = c.calc(d['rho'], d['psi'], d['omega'], s=NEG_CONTROL_START, e=NEG_CONTROL_END)
+    cr = c.calc(
+        d["rho"],
+        d["psi"],
+        d["omega"],
+        s=CRISIS_START,
+        e=CRISIS_END,
+    )
 
-    print(f"\n  Crisis Pi: {cr['pi'].max():.6f} | Control Pi: {ct['pi'].max():.6f}")
+    ct = c.calc(
+        d["rho"],
+        d["psi"],
+        d["omega"],
+        s=NEG_CONTROL_START,
+        e=NEG_CONTROL_END,
+    )
+
+    validate_reproduction(cr, ct)
+
+    print(
+        f"\n  Crisis Pi: {cr['pi'].max():.6f} "
+        f"| Control Pi: {ct['pi'].max():.6f}"
+    )
 
     cr.to_csv(f"{OUTPUT_DIR}/crisis_covid_pi.csv")
     ct.to_csv(f"{OUTPUT_DIR}/control_covid_pi.csv")
@@ -350,14 +594,37 @@ def main():
               f"{OUTPUT_DIR}/fig2_covid_vs_control.png")
 
     cd = pd.Timestamp(COLLAPSE_DATE)
-    n = cr.index[cr.index.get_indexer([cd], method='nearest')]
-    pc = cr.loc[n[0], 'pi']; cf = ct['pi'].iloc[-1]
-    s = pc/cf if cf > 0 else float('inf')
+    loc = cr.index.get_indexer(
+        [cd],
+        method="nearest",
+    )
+
+    if loc[0] < 0:
+        raise ValueError(
+            "No COVID observation near selected event date."
+        )
+
+    event_obs = cr.index[loc[0]]
+
+    pc = float(cr.loc[event_obs, "pi"])
+    cf = float(ct["pi"].iloc[-1])
+
+    if not np.isfinite(pc):
+        raise ValueError(
+            "COVID event-date Pi must be finite."
+        )
+
+    if not np.isfinite(cf) or cf <= 0:
+        raise ValueError(
+            "COVID control Pi must be positive and finite."
+        )
+
+    separation = pc / cf
 
     print(f"\n{'='*60}")
-    print(f"  Pi@pandemic: {pc:.6f}")
-    print(f"  Control:     {cf:.6f}")
-    print(f"  Separation:  {s:.1f}x")
+    print(f"  Pi@event:     {pc:.6f}")
+    print(f"  Control:      {cf:.6f}")
+    print(f"  Separation:   {separation:.1f}x")
     print(f"{'='*60}")
 
 

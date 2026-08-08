@@ -84,9 +84,9 @@ CASE_META = {
         "control_file": "data/control_covid_pi.csv",
         "code": "Cases/case4_covid.py",
         "raw_status": (
-            "Processed crisis/control CSVs are frozen and hash-checked; "
-            "the raw responses and the executed omega-source branch are "
-            "not independently archived"
+            "Canonical processed crisis/control CSVs are frozen and hash-locked; "
+            "the active case implementation performs no live source retrieval "
+            "and has no runtime source fallback"
         ),
         "joint_alternative": "None recorded in active revised evidence",
     },
@@ -133,8 +133,9 @@ SPECIFICATIONS = [
         "Series_or_input": "TOTBKCR",
         "Source_as_configured": "FRED",
         "Transformation": (
-            "Level value; time-linear interpolation to the common daily "
-            "index followed by forward/backward edge filling"
+            "Level value; align to the common daily index, apply time-linear "
+            "interpolation only inside the observed range, then permit "
+            "trailing forward fill; no backward fill"
         ),
         "Actually_tested_alternative": (
             "COMPOUT absolute percentage change"
@@ -171,8 +172,8 @@ SPECIFICATIONS = [
         "Transformation": (
             "Mean pairwise correlation of log returns over the preceding "
             "60 observations, transformed as (mean correlation + 1) / 2 "
-            "and clipped to [0, 1]; fallback 0.5 when fewer than two "
-            "usable series remain"
+            "using only complete three-asset windows; no clipping, "
+            "filling, or fallback value is applied"
         ),
         "Actually_tested_alternative": (
             "None recorded in active revised evidence"
@@ -187,8 +188,9 @@ SPECIFICATIONS = [
         ),
         "Source_as_configured": "USGS FDSN Event API",
         "Transformation": (
-            "Convert magnitude to energy using 10^(1.5M + 4.8), sum daily, "
-            "then take log10 of daily total energy"
+            "Construct the full daily calendar; no-event days contribute "
+            "rho=0. For positive-event days, convert magnitude to energy "
+            "using 10^(1.5M + 4.8), sum daily energy, then take log10"
         ),
         "Actually_tested_alternative": (
             "None recorded in active revised evidence"
@@ -224,7 +226,10 @@ SPECIFICATIONS = [
         "Channel": "rho",
         "Role_mapping": "Global epidemic load",
         "Series_or_input": "Global confirmed COVID-19 cases",
-        "Source_as_configured": "Johns Hopkins CSSE",
+        "Source_as_configured": (
+            "Frozen tracked COVID CSV; original construction metadata "
+            "records Johns Hopkins CSSE"
+        ),
         "Transformation": (
             "Difference global cumulative cases, clip negative revisions "
             "to zero, then apply a 7-day rolling mean"
@@ -238,8 +243,11 @@ SPECIFICATIONS = [
         "Channel": "psi",
         "Role_mapping": "Financial-market volatility",
         "Series_or_input": "^VIX close",
-        "Source_as_configured": "Yahoo Finance",
-        "Transformation": "VIX closing level",
+        "Source_as_configured": (
+            "Frozen tracked COVID CSV; original construction metadata "
+            "records Yahoo Finance ^VIX"
+        ),
+        "Transformation": "VIX closing level in the frozen construction",
         "Actually_tested_alternative": (
             "None recorded in active revised evidence"
         ),
@@ -250,12 +258,12 @@ SPECIFICATIONS = [
         "Role_mapping": "High-yield credit-market stress",
         "Series_or_input": "BAMLH0A0HYM2",
         "Source_as_configured": (
-            "FRED primary path; source code contains an HYG/LQD fallback"
+            "Frozen tracked COVID CSV; original construction metadata "
+            "records FRED BAMLH0A0HYM2"
         ),
         "Transformation": (
-            "High-yield option-adjusted spread level on the primary path; "
-            "fallback path uses the 5-observation mean absolute percentage "
-            "change of the inverse HYG/LQD price ratio"
+            "High-yield option-adjusted spread level in the frozen "
+            "construction; no runtime proxy or fallback branch is active"
         ),
         "Actually_tested_alternative": (
             "No separate active revised substitution table"

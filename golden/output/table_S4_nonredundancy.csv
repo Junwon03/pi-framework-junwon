@@ -1,6 +1,6 @@
 Case,Correlation_window,"r(rho,psi)","r(rho,omega)","r(psi,omega)",max|r|,Interpretive_status
 2008 Financial,Full control window,0.152,0.126,0.206,0.206,Descriptive pairwise linear correlation; no pass/fail threshold
 Terra-Luna,Full control window,0.181,-0.134,-0.142,0.181,Descriptive pairwise linear correlation; no pass/fail threshold
-Fukushima,Full control window,-0.004,-0.004,0.039,0.039,Descriptive pairwise linear correlation; no pass/fail threshold
+Fukushima,Full control window,0.097,0.013,0.039,0.097,Descriptive pairwise linear correlation; no pass/fail threshold
 COVID-19,Full control window,0.122,-0.006,0.655,0.655,Descriptive pairwise linear correlation; no pass/fail threshold
 Supply Chain,Full control window,0.006,0.952,0.126,0.952,Descriptive pairwise linear correlation; no pass/fail threshold

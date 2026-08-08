@@ -18,14 +18,13 @@ Note: Monthly data → DPY=12, dt=1/12
 의존성: pip install pandas numpy matplotlib requests
 """
 
-import os, sys, time
+import os
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import requests
-import warnings
-warnings.filterwarnings('ignore')
 
 # Supply chain crisis peak: ~2021-10 (container rates peak, delivery times worst)
 COLLAPSE_DATE = "2021-10-01"
@@ -41,7 +40,8 @@ PLIMIT_PCT = 99
 DPY = 12  # monthly data
 OUTPUT_DIR = "./output"
 
-FRED_API_KEY = os.environ.get('FRED_API_KEY', '')
+FRED_API_KEY = os.environ.get("FRED_API_KEY", "")
+FRED_VINTAGE_DATE = os.environ.get("FRED_VINTAGE_DATE", "")
 
 # FRED Series IDs
 SERIES = {
@@ -53,124 +53,458 @@ SERIES = {
 
 class PiCalc:
     def __init__(self):
-        self.dt = 1.0/DPY; self.p = {}
-    def calibrate(self, r, p, o):
-        rs = r[STABLE_START:STABLE_END].dropna()
-        ps = p[STABLE_START:STABLE_END].dropna()
-        os_ = o[STABLE_START:STABLE_END].dropna()
-        self.p = {k: max(np.percentile(v, PLIMIT_PCT), 1e-10)
-                  for k,v in zip(['r','p','o'],[rs,ps,os_])}
-        print(f"  P_limits: rho={self.p['r']:.4f}, psi={self.p['p']:.4f}, omega={self.p['o']:.4f}")
-        return self.p
-    def calc(self, r, p, o, s=None, e=None):
-        if s: r,p,o = r[s:],p[s:],o[s:]
-        if e: r,p,o = r[:e],p[:e],o[:e]
-        idx = r.index.intersection(p.index).intersection(o.index)
-        r,p,o = r.reindex(idx),p.reindex(idx),o.reindex(idx)
-        rn=(r/self.p['r']).clip(0); pn=(p/self.p['p']).clip(0); on=(o/self.p['o']).clip(0)
-        st = rn*pn*on; pi = (st*self.dt).cumsum()
-        return pd.DataFrame({'rho':r,'psi':p,'omega':o,
-            'rho_norm':rn,'psi_norm':pn,'omega_norm':on,
-            'stress':st,'pi':pi}, index=idx)
+        if not np.isfinite(DPY) or DPY <= 0:
+            raise ValueError("DPY must be positive and finite.")
 
+        self.dt = 1.0 / float(DPY)
+        self.p = {}
+        self.ok = False
+
+    def calibrate(self, r, p, o):
+        stable = {
+            "r": r[STABLE_START:STABLE_END].dropna(),
+            "p": p[STABLE_START:STABLE_END].dropna(),
+            "o": o[STABLE_START:STABLE_END].dropna(),
+        }
+
+        for name, series in stable.items():
+            if series.empty:
+                raise ValueError(
+                    f"{name}: no Supply calibration observations."
+                )
+
+            values = series.to_numpy(dtype=float)
+
+            if not np.isfinite(values).all():
+                raise ValueError(
+                    f"{name}: calibration data contain non-finite values."
+                )
+
+            if (values < 0).any():
+                raise ValueError(
+                    f"{name}: calibration data must be non-negative."
+                )
+
+        limits = {
+            name: float(
+                np.percentile(
+                    series.to_numpy(dtype=float),
+                    PLIMIT_PCT,
+                )
+            )
+            for name, series in stable.items()
+        }
+
+        for name, value in limits.items():
+            if not np.isfinite(value) or value <= 0:
+                raise ValueError(
+                    f"{name}: P_limit must be positive and finite; "
+                    f"got {value}."
+                )
+
+        self.p = limits
+        self.ok = True
+
+        print(
+            f"  P_limits: "
+            f"rho={self.p['r']:.4f}, "
+            f"psi={self.p['p']:.4f}, "
+            f"omega={self.p['o']:.4f}"
+        )
+
+        return self.p
+
+    def calc(self, r, p, o, s=None, e=None):
+        if not self.ok:
+            raise RuntimeError(
+                "calibrate() must be called before calc()."
+            )
+
+        if s:
+            r, p, o = r[s:], p[s:], o[s:]
+
+        if e:
+            r, p, o = r[:e], p[:e], o[:e]
+
+        idx = (
+            r.index
+            .intersection(p.index)
+            .intersection(o.index)
+            .sort_values()
+        )
+
+        if len(idx) == 0:
+            raise ValueError("No common Supply observations.")
+
+        if idx.has_duplicates:
+            raise ValueError(
+                "Supply analysis index contains duplicate dates."
+            )
+
+        r = r.reindex(idx)
+        p = p.reindex(idx)
+        o = o.reindex(idx)
+
+        for name, series in {
+            "rho": r,
+            "psi": p,
+            "omega": o,
+        }.items():
+            values = series.to_numpy(dtype=float)
+
+            if not np.isfinite(values).all():
+                raise ValueError(
+                    f"{name}: analysis data contain non-finite values."
+                )
+
+            if (values < 0).any():
+                raise ValueError(
+                    f"{name}: analysis data must be non-negative."
+                )
+
+        rn = r / self.p["r"]
+        pn = p / self.p["p"]
+        on = o / self.p["o"]
+
+        for name, series in {
+            "rho_norm": rn,
+            "psi_norm": pn,
+            "omega_norm": on,
+        }.items():
+            values = series.to_numpy(dtype=float)
+
+            if not np.isfinite(values).all():
+                raise ValueError(
+                    f"{name}: normalized data contain non-finite values."
+                )
+
+            if (values < 0).any():
+                raise ValueError(
+                    f"{name}: normalized data must be non-negative."
+                )
+
+        stress = rn * pn * on
+
+        if not np.isfinite(
+            stress.to_numpy(dtype=float)
+        ).all():
+            raise ValueError(
+                "Supply stress contains non-finite values."
+            )
+
+        if (stress.to_numpy(dtype=float) < 0).any():
+            raise ValueError(
+                "Supply stress must be non-negative."
+            )
+
+        pi = (stress * self.dt).cumsum()
+
+        if not np.isfinite(
+            pi.to_numpy(dtype=float)
+        ).all():
+            raise ValueError(
+                "Supply Pi contains non-finite values."
+            )
+
+        return pd.DataFrame(
+            {
+                "rho": r,
+                "psi": p,
+                "omega": o,
+                "rho_norm": rn,
+                "psi_norm": pn,
+                "omega_norm": on,
+                "stress": stress,
+                "pi": pi,
+            },
+            index=idx,
+        )
 
 def fetch_fred(series_id, label=""):
-    """Fetch single series from FRED API"""
+    """Fetch one complete monthly FRED series at a fixed vintage."""
     if not FRED_API_KEY:
-        print(f"  WARNING: No FRED_API_KEY, trying without...")
+        raise RuntimeError(
+            "FRED_API_KEY is required for Supply analysis."
+        )
 
-    url = (f"https://api.stlouisfed.org/fred/series/observations?"
-           f"series_id={series_id}&api_key={FRED_API_KEY}"
-           f"&file_type=json"
-           f"&observation_start={DATA_START}&observation_end={DATA_END}")
-    try:
-        resp = requests.get(url, timeout=30)
-        if resp.status_code == 200:
-            obs = resp.json().get('observations', [])
-            if len(obs) > 0:
-                df = pd.DataFrame(obs)
-                df['date'] = pd.to_datetime(df['date'])
-                df['value'] = pd.to_numeric(df['value'], errors='coerce')
-                series = df.set_index('date')['value'].dropna()
-                series.index = series.index.normalize()
-                return series
-        print(f"  HTTP {resp.status_code}")
-    except Exception as e:
-        print(f"  err: {e}")
-    return None
+    if not FRED_VINTAGE_DATE:
+        raise RuntimeError(
+            "FRED_VINTAGE_DATE is required for Supply analysis."
+        )
 
+    url = (
+        "https://api.stlouisfed.org/"
+        "fred/series/observations"
+    )
+
+    params = {
+        "series_id": series_id,
+        "api_key": FRED_API_KEY,
+        "file_type": "json",
+        "observation_start": DATA_START,
+        "observation_end": DATA_END,
+        "realtime_start": FRED_VINTAGE_DATE,
+        "realtime_end": FRED_VINTAGE_DATE,
+    }
+
+    response = requests.get(
+        url,
+        params=params,
+        timeout=30,
+    )
+    response.raise_for_status()
+
+    payload = response.json()
+    observations = payload.get("observations")
+
+    if not isinstance(observations, list):
+        raise RuntimeError(
+            f"{series_id}: malformed FRED observations response."
+        )
+
+    if not observations:
+        raise RuntimeError(
+            f"{series_id}: FRED returned no observations."
+        )
+
+    frame = pd.DataFrame(observations)
+
+    required = {"date", "value"}
+    missing = required - set(frame.columns)
+
+    if missing:
+        raise RuntimeError(
+            f"{series_id}: FRED response missing columns: "
+            f"{sorted(missing)}"
+        )
+
+    frame["date"] = pd.to_datetime(
+        frame["date"],
+        errors="raise",
+    )
+
+    frame["value"] = pd.to_numeric(
+        frame["value"],
+        errors="coerce",
+    )
+
+    series = (
+        frame
+        .dropna(subset=["value"])
+        .set_index("date")["value"]
+        .sort_index()
+    )
+
+    if series.empty:
+        raise RuntimeError(
+            f"{series_id}: no numeric FRED observations."
+        )
+
+    if series.index.has_duplicates:
+        raise RuntimeError(
+            f"{series_id}: duplicate FRED dates."
+        )
+
+    expected_index = pd.date_range(
+        DATA_START,
+        DATA_END,
+        freq="MS",
+    )
+
+    if not series.index.equals(expected_index):
+        missing_dates = expected_index.difference(
+            series.index
+        )
+        extra_dates = series.index.difference(
+            expected_index
+        )
+
+        raise RuntimeError(
+            f"{series_id}: incomplete monthly FRED series; "
+            f"missing={list(missing_dates.strftime('%Y-%m-%d'))}, "
+            f"extra={list(extra_dates.strftime('%Y-%m-%d'))}."
+        )
+
+    values = series.to_numpy(dtype=float)
+
+    if not np.isfinite(values).all():
+        raise RuntimeError(
+            f"{series_id}: FRED data contain non-finite values."
+        )
+
+    return series
 
 def fetch():
     print("=" * 60)
     print("  Supply Chain Crisis: ALL DATA FROM FRED")
-    print("  rho=PCEDG | psi=Delivery Time | omega=Freight PPI")
+    print(
+        "  rho=PCEDG | psi=Delivery Time | "
+        "omega=Freight PPI"
+    )
+    print(
+        f"  Fixed FRED vintage: {FRED_VINTAGE_DATE}"
+    )
     print("=" * 60)
 
-    # === ρ: PCEDG (Durable Goods Consumption) ===
-    print(f"\n[1/3] rho: PCEDG (Durable Goods PCE)")
+    print("\n[1/3] rho: PCEDG (Durable Goods PCE)")
     print("-" * 50)
     print(f"  Fetching {SERIES['rho']}...", end=" ")
-    rho_raw = fetch_fred(SERIES['rho'])
-    if rho_raw is None or len(rho_raw) < 10:
-        print("FAIL"); return None
+
+    rho_raw = fetch_fred(SERIES["rho"])
     print(f"ok {len(rho_raw)} months")
 
-    # 전월 대비 변화율 (소비 가속도)
-    rho = rho_raw.pct_change().abs()
-    print(f"  PCEDG range: ${rho_raw.min():.0f}B ~ ${rho_raw.max():.0f}B")
-    print(f"  rho (|MoM change|): {rho.dropna().shape[0]} pts")
+    # Absolute month-over-month durable-goods demand change.
+    # fill_method=None prevents implicit missing-value propagation.
+    rho = rho_raw.pct_change(
+        fill_method=None
+    ).abs()
 
-    time.sleep(1)
+    print(
+        f"  PCEDG range: "
+        f"${rho_raw.min():.0f}B ~ ${rho_raw.max():.0f}B"
+    )
+    print(
+        f"  rho (|MoM change|): "
+        f"{rho.dropna().shape[0]} pts"
+    )
 
-    # === Ψ: Delivery Time ===
-    print(f"\n[2/3] psi: Empire State Delivery Time ({SERIES['psi']})")
+    print(
+        f"\n[2/3] psi: Empire State Delivery Time "
+        f"({SERIES['psi']})"
+    )
     print("-" * 50)
     print(f"  Fetching {SERIES['psi']}...", end=" ")
-    psi_raw = fetch_fred(SERIES['psi'])
-    if psi_raw is None or len(psi_raw) < 10:
-        print("FAIL"); return None
+
+    psi_raw = fetch_fred(SERIES["psi"])
     print(f"ok {len(psi_raw)} months")
 
-    # Delivery time: 양수 = 납기 늘어남 (악화)
-    # 절대값 사용 (악화 정도)
-    psi = psi_raw.clip(lower=0)  # 양수만 (지연 증가)
-    print(f"  Delivery time range: {psi_raw.min():.1f} ~ {psi_raw.max():.1f}")
-    print(f"  2021 peak: {psi_raw['2021'].max():.1f} on {psi_raw['2021'].idxmax().strftime('%Y-%m')}")
+    # Explicit one-sided stress transform:
+    # positive diffusion-index values indicate worsening
+    # delivery times; zero/negative values do not contribute
+    # positive delivery-delay stress.
+    psi = psi_raw.where(
+        psi_raw > 0,
+        0.0,
+    )
 
-    time.sleep(1)
+    print(
+        f"  Delivery time range: "
+        f"{psi_raw.min():.1f} ~ {psi_raw.max():.1f}"
+    )
 
-    # === Ω: Freight PPI ===
-    print(f"\n[3/3] omega: PPI Freight Transportation ({SERIES['omega']})")
+    psi_2021 = psi_raw.loc["2021"]
+
+    print(
+        f"  2021 peak: {psi_2021.max():.1f} "
+        f"on {psi_2021.idxmax().strftime('%Y-%m')}"
+    )
+
+    print(
+        f"  One-sided psi transform: "
+        f"{int((psi_raw < 0).sum())} negative raw months "
+        "mapped to 0 stress"
+    )
+
+    print(
+        f"\n[3/3] omega: PPI Freight Transportation "
+        f"({SERIES['omega']})"
+    )
     print("-" * 50)
     print(f"  Fetching {SERIES['omega']}...", end=" ")
-    omega_raw = fetch_fred(SERIES['omega'])
-    if omega_raw is None or len(omega_raw) < 10:
-        print("FAIL"); return None
+
+    omega_raw = fetch_fred(SERIES["omega"])
     print(f"ok {len(omega_raw)} months")
 
-    # 전월 대비 변화율 (운임 가속도)
-    omega = omega_raw.pct_change().abs()
-    print(f"  Freight PPI range: {omega_raw.min():.1f} ~ {omega_raw.max():.1f}")
-    print(f"  omega (|MoM change|): {omega.dropna().shape[0]} pts")
+    # Absolute month-over-month freight-price change.
+    omega = omega_raw.pct_change(
+        fill_method=None
+    ).abs()
 
-    # Align monthly data
+    print(
+        f"  Freight PPI range: "
+        f"{omega_raw.min():.1f} ~ {omega_raw.max():.1f}"
+    )
+    print(
+        f"  omega (|MoM change|): "
+        f"{omega.dropna().shape[0]} pts"
+    )
+
     print("\n[Align]")
-    common = rho.dropna().index.intersection(psi.dropna().index).intersection(omega.dropna().index)
+
+    common = (
+        rho.dropna()
+        .index.intersection(psi.dropna().index)
+        .intersection(omega.dropna().index)
+        .sort_values()
+    )
+
+    if len(common) == 0:
+        raise ValueError(
+            "No common Supply monthly observations."
+        )
+
+    if common.has_duplicates:
+        raise ValueError(
+            "Supply common index contains duplicate dates."
+        )
+
     rho = rho.reindex(common)
     psi = psi.reindex(common)
     omega = omega.reindex(common)
 
-    # Debug key dates
-    for d in ['2020-06-01', '2021-01-01', '2021-06-01', '2021-10-01', '2022-01-01']:
+    for name, series in {
+        "rho": rho,
+        "psi": psi,
+        "omega": omega,
+    }.items():
+        values = series.to_numpy(dtype=float)
+
+        if not np.isfinite(values).all():
+            raise ValueError(
+                f"{name}: aligned Supply data contain "
+                "non-finite values."
+            )
+
+        if (values < 0).any():
+            raise ValueError(
+                f"{name}: aligned Supply data "
+                "must be non-negative."
+            )
+
+    for d in [
+        "2020-06-01",
+        "2021-01-01",
+        "2021-06-01",
+        "2021-10-01",
+        "2022-01-01",
+    ]:
         ts = pd.Timestamp(d)
-        idx = common[common.get_indexer([ts], method='nearest')[0]]
-        print(f"  {d}: rho={rho.loc[idx]:.4f}, psi={psi.loc[idx]:.1f}, omega={omega.loc[idx]:.4f}")
+        loc = common.get_indexer(
+            [ts],
+            method="nearest",
+        )
 
-    v = rho.notna() & psi.notna() & omega.notna()
-    f = common[v]
-    print(f"  Final: {len(f)} months")
-    return {'rho': rho.reindex(f), 'psi': psi.reindex(f), 'omega': omega.reindex(f)}
+        if loc[0] < 0:
+            raise ValueError(
+                f"No Supply observation near {d}."
+            )
 
+        idx = common[loc[0]]
+
+        print(
+            f"  {d}: "
+            f"rho={rho.loc[idx]:.4f}, "
+            f"psi={psi.loc[idx]:.1f}, "
+            f"omega={omega.loc[idx]:.4f}"
+        )
+
+    print(f"  Final: {len(common)} months")
+
+    return {
+        "rho": rho,
+        "psi": psi,
+        "omega": omega,
+    }
 
 def plot_traj(res, title, cd, path=None):
     plt.rcParams.update({'figure.dpi':150,'font.family':'serif','font.size':11,
@@ -234,7 +568,6 @@ def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     d = fetch()
-    if not d: print("FAIL"); sys.exit(1)
 
     c = PiCalc()
     c.calibrate(d['rho'], d['psi'], d['omega'])
@@ -254,14 +587,36 @@ def main():
               f"{OUTPUT_DIR}/fig2_supply_chain_vs_control.png")
 
     cd = pd.Timestamp(COLLAPSE_DATE)
-    n = cr.index[cr.index.get_indexer([cd], method='nearest')]
-    pc = cr.loc[n[0], 'pi']; cf = ct['pi'].iloc[-1]
-    s = pc/cf if cf > 0 else float('inf')
+    loc = cr.index.get_indexer(
+        [cd],
+        method="nearest",
+    )
+
+    if loc[0] < 0:
+        raise ValueError(
+            "No Supply observation near selected peak date."
+        )
+
+    peak_obs = cr.index[loc[0]]
+    pc = float(cr.loc[peak_obs, "pi"])
+    cf = float(ct["pi"].iloc[-1])
+
+    if not np.isfinite(pc):
+        raise ValueError(
+            "Supply peak-date Pi must be finite."
+        )
+
+    if not np.isfinite(cf) or cf <= 0:
+        raise ValueError(
+            "Supply control Pi must be positive and finite."
+        )
+
+    separation = pc / cf
 
     print(f"\n{'='*60}")
     print(f"  Pi@peak:     {pc:.6f}")
     print(f"  Control:     {cf:.6f}")
-    print(f"  Separation:  {s:.1f}x")
+    print(f"  Separation:  {separation:.1f}x")
     print(f"{'='*60}")
 
 

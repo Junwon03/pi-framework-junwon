@@ -1,6 +1,6 @@
 Case,Event_date,Rolling_window,Control_mean_stress,Threshold_2σ,Threshold_3σ,First_crossing_2σ,First_crossing_3σ,Days_relative_to_event_2σ,Days_relative_to_event_3σ,Crossing_timing
 2008 Financial,2008-09-15,90,0.043054,0.207302,0.289425,2007-08-14,2007-08-16,-398,-396,Before event
 Terra-Luna,2022-05-09,30,0.067925,0.302931,0.420433,N/A,N/A,N/A,N/A,No crossing
-Fukushima,2011-03-11,30,0.128818,0.374316,0.497065,2011-03-18,N/A,7,N/A,After event
+Fukushima,2011-03-11,30,0.085565,0.337571,0.463574,2011-03-17,2011-04-06,6,26,After event
 COVID-19,2020-03-23,30,0.015478,0.240329,0.352755,2020-02-05,2020-02-07,-47,-45,Before event
 Supply Chain,2021-10-01,3,0.019966,0.157979,0.226985,2021-03-01,2021-04-01,-214,-183,Before event

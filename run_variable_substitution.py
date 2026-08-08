@@ -4,10 +4,10 @@ Pi Framework — Variable Substitution Robustness (2008 Financial Case)
 Tests whether the framework's conclusions hold when individual variables
 are replaced with conceptually similar alternatives from public sources.
 
-Key design: uses the SAME date indices as the existing analysis
-(from data/crisis_2008_pi.csv and data/control_2004_2006_pi.csv)
-so that baseline separation matches run_all.py exactly.
-Only the variable content changes, not the observation window.
+Key design: uses the SAME date indices, channel transformations, and
+2008 calibration period as the frozen baseline analysis. Alternative source
+series replace the corresponding baseline source while the observation
+windows and channel transformation definitions are held fixed.
 
 Substitutions tested (2008 Financial Crisis):
   rho: Fed Funds Rate (DFF) -> 2-Year Treasury Yield (DGS2)
@@ -36,12 +36,17 @@ DATA_DIR = os.path.join(_base, 'data')
 OUT_DIR = os.path.join(_base, 'output')
 os.makedirs(OUT_DIR, exist_ok=True)
 
-FRED_API_KEY = os.environ.get('FRED_API_KEY', '')
-FRED_VINTAGE_DATE = os.environ.get("FRED_VINTAGE_DATE", "2026-02-17")
+FRED_API_KEY = os.environ.get("FRED_API_KEY", "")
+FRED_VINTAGE_DATE = os.environ.get("FRED_VINTAGE_DATE", "")
 
 # Files from existing analysis
 CRISIS_FILE = 'crisis_2008_pi.csv'
 CONTROL_FILE = 'control_2004_2006_pi.csv'
+
+# Match the frozen 2008 baseline specification.
+STABLE_START = "2005-01-01"
+STABLE_END = "2007-06-30"
+DELTA_OBSERVATIONS = 5
 
 
 # ================================================================
@@ -49,41 +54,110 @@ CONTROL_FILE = 'control_2004_2006_pi.csv'
 # ================================================================
 
 def fetch_fred(series_id, start, end):
-    """Fetch a FRED series via API."""
+    """Fetch one exact FRED series from the fixed requested vintage."""
     import requests
-    url = (f"https://api.stlouisfed.org/fred/series/observations?"
-           f"series_id={series_id}&api_key={FRED_API_KEY}"
-           f"&file_type=json&observation_start={start}&observation_end={end}"
-           f"&realtime_start={FRED_VINTAGE_DATE}&realtime_end={FRED_VINTAGE_DATE}")
+
+    if not FRED_API_KEY:
+        raise RuntimeError("FRED_API_KEY is required.")
+    if not FRED_VINTAGE_DATE:
+        raise RuntimeError("FRED_VINTAGE_DATE is required.")
+
+    url = "https://api.stlouisfed.org/fred/series/observations"
+    params = {
+        "series_id": series_id,
+        "api_key": FRED_API_KEY,
+        "file_type": "json",
+        "observation_start": start,
+        "observation_end": end,
+        "realtime_start": FRED_VINTAGE_DATE,
+        "realtime_end": FRED_VINTAGE_DATE,
+    }
+
     try:
-        resp = requests.get(url, timeout=30)
-        if resp.status_code == 200:
-            obs = resp.json().get('observations', [])
-            df = pd.DataFrame(obs)
-            df['date'] = pd.to_datetime(df['date'])
-            df['value'] = pd.to_numeric(df['value'], errors='coerce')
-            return df.set_index('date')['value'].dropna()
-        else:
-            print(f'    WARNING: HTTP {resp.status_code} for {series_id}')
-            return None
-    except Exception as e:
-        print(f'    WARNING: Failed to fetch {series_id}: {e}')
-        return None
+        resp = requests.get(url, params=params, timeout=30)
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        raise RuntimeError(
+            f"FRED request failed for {series_id}: {exc}"
+        ) from exc
+
+    try:
+        payload = resp.json()
+    except ValueError as exc:
+        raise RuntimeError(
+            f"FRED returned invalid JSON for {series_id}."
+        ) from exc
+
+    observations = payload.get("observations")
+    if not observations:
+        raise RuntimeError(
+            f"FRED returned no observations for {series_id} "
+            f"from {start} to {end} at vintage {FRED_VINTAGE_DATE}."
+        )
+
+    df = pd.DataFrame(observations)
+    required = {"date", "value"}
+    if not required.issubset(df.columns):
+        raise RuntimeError(
+            f"Malformed FRED response for {series_id}: "
+            f"missing {sorted(required - set(df.columns))}"
+        )
+
+    dates = pd.to_datetime(df["date"], errors="coerce")
+    values = pd.to_numeric(df["value"], errors="coerce")
+    series = pd.Series(values.to_numpy(), index=dates, name=series_id)
+    series = series.loc[series.index.notna()]
+    series = series.dropna()
+    series = series[~series.index.duplicated(keep="last")].sort_index()
+
+    if series.empty:
+        raise RuntimeError(
+            f"No finite numeric observations remain for {series_id}."
+        )
+    if not np.isfinite(series.to_numpy(dtype=float)).all():
+        raise RuntimeError(
+            f"Non-finite values remain in FRED series {series_id}."
+        )
+
+    return series
 
 
 def align_to_index(series, target_index):
     """
-    Align a FRED series to an existing date index using
-    forward-fill then interpolation for any remaining gaps.
+    Align a source series to target dates using only information available
+    on or before each target date.
+
+    Original source dates are retained before forward filling. Future values
+    are never backward-filled into earlier target dates.
     """
-    # Reindex to target dates
-    aligned = series.reindex(target_index)
-    # Forward-fill (for weekly/monthly data that has gaps)
-    aligned = aligned.ffill()
-    # Backfill any leading NaNs
-    aligned = aligned.bfill()
-    # Interpolate any remaining interior gaps
-    aligned = aligned.interpolate()
+    if not isinstance(series, pd.Series):
+        raise TypeError("series must be a pandas Series.")
+
+    source = series.copy()
+    source.index = pd.DatetimeIndex(source.index)
+    source = source[~source.index.duplicated(keep="last")].sort_index()
+
+    target = pd.DatetimeIndex(target_index)
+    if target.empty:
+        raise ValueError("target_index must not be empty.")
+    if target.has_duplicates:
+        raise ValueError("target_index contains duplicate dates.")
+
+    combined_index = source.index.union(target).sort_values()
+    aligned = source.reindex(combined_index).ffill().reindex(target)
+
+    if aligned.isna().any():
+        missing = aligned.index[aligned.isna()]
+        raise ValueError(
+            "Causal alignment lacks a prior source observation for "
+            f"{len(missing)} target date(s); first missing target is "
+            f"{missing[0].date()}."
+        )
+
+    values = aligned.to_numpy(dtype=float)
+    if not np.isfinite(values).all():
+        raise ValueError("Aligned series contains non-finite values.")
+
     return aligned
 
 
@@ -99,16 +173,20 @@ def run_substitution_test():
     print('=' * 75)
 
     if not FRED_API_KEY:
-        print('\n  WARNING: FRED_API_KEY not set. Skipping.')
-        return None
+        raise RuntimeError("FRED_API_KEY is required for this analysis.")
+    if not FRED_VINTAGE_DATE:
+        raise RuntimeError(
+            "FRED_VINTAGE_DATE is required for reproducible FRED retrieval."
+        )
 
     # ── Load existing analysis data ──
     crisis_path = os.path.join(DATA_DIR, CRISIS_FILE)
     control_path = os.path.join(DATA_DIR, CONTROL_FILE)
 
     if not os.path.exists(crisis_path) or not os.path.exists(control_path):
-        print(f'\n  ERROR: Cannot find {CRISIS_FILE} or {CONTROL_FILE} in {DATA_DIR}')
-        return None
+        raise FileNotFoundError(
+            f"Cannot find {CRISIS_FILE} or {CONTROL_FILE} in {DATA_DIR}"
+        )
 
     crisis_df = pd.read_csv(crisis_path, index_col=0, parse_dates=True)
     control_df = pd.read_csv(control_path, index_col=0, parse_dates=True)
@@ -121,7 +199,11 @@ def run_substitution_test():
     dt = 1.0 / 365
     pi_crisis_existing = (crisis_df['stress'] * dt).sum()
     pi_control_existing = (control_df['stress'] * dt).sum()
-    sep_existing = pi_crisis_existing / pi_control_existing if pi_control_existing > 0 else float('inf')
+    if not np.isfinite(pi_control_existing) or pi_control_existing <= 0:
+        raise ValueError("Existing control cumulative stress must be positive and finite.")
+    if not np.isfinite(pi_crisis_existing):
+        raise ValueError("Existing crisis cumulative stress must be finite.")
+    sep_existing = pi_crisis_existing / pi_control_existing
     print(f'    Existing baseline Sep = {sep_existing:.1f}x')
 
     # Get baseline normalized channels
@@ -144,49 +226,56 @@ def run_substitution_test():
     print(f'\n  Fetching FRED data ({stable_fetch_start} to {fetch_end})...')
 
     alt_series = {}
-    for sid, desc in [('DGS2', '2-Year Treasury (alt rho)'),
-                       ('VIXCLS', 'VIX (alt Psi)'),
-                       ('COMPOUT', 'Commercial Paper (alt Omega)')]:
+    required_series = [
+        ('DGS2', '2-Year Treasury (alt rho)'),
+        ('VIXCLS', 'VIX (alt Psi)'),
+        ('COMPOUT', 'Commercial Paper (alt Omega)'),
+    ]
+
+    for sid, desc in required_series:
         print(f'    Fetching {sid} ({desc})...')
         s = fetch_fred(sid, stable_fetch_start, fetch_end)
-        if s is not None:
-            print(f'      -> {len(s)} observations')
-            alt_series[sid] = s
-        else:
-            print(f'      -> FAILED')
-        time.sleep(0.3)
+        alt_series[sid] = s
+        print(
+            f'      -> {len(s)} observations '
+            f'[{s.index.min().date()} to {s.index.max().date()}]'
+        )
 
-    # Fallback for Commercial Paper
-    if 'COMPOUT' not in alt_series:
-        for fallback in ['DTBSPCKM', 'COMPAPER']:
-            print(f'    Trying {fallback} as fallback...')
-            s = fetch_fred(fallback, stable_fetch_start, fetch_end)
-            if s is not None:
-                alt_series['COMPOUT'] = s
-                print(f'      -> {len(s)} observations')
-                break
-            time.sleep(0.3)
-
-    # Also fetch baseline variables for P-limit calculation of substitutes
-    print(f'    Fetching baseline vars for P-limit reference...')
-    for sid in ['DFF', 'TEDRATE', 'TOTBKCR']:
-        s = fetch_fred(sid, stable_fetch_start, fetch_end)
-        if s is not None:
-            alt_series[sid] = s
-            print(f'      {sid}: {len(s)} obs')
-        time.sleep(0.3)
+    missing = [sid for sid, _ in required_series if sid not in alt_series]
+    if missing:
+        raise RuntimeError(
+            f"Required FRED series were not retrieved: {missing}"
+        )
 
     # ── Compute P-limits for alternative variables ──
-    # Use control period as stable reference (same as run_all.py)
-    control_idx = control_df.index
+    # Use the same stable/calibration period as the frozen 2008 baseline.
+    calibration_idx = crisis_df.index[
+        (crisis_df.index >= pd.Timestamp(STABLE_START))
+        & (crisis_df.index <= pd.Timestamp(STABLE_END))
+    ]
+
+    if calibration_idx.empty:
+        raise ValueError(
+            f"No frozen baseline dates found in calibration period "
+            f"{STABLE_START} to {STABLE_END}."
+        )
 
     def compute_plimit(series, ref_index, percentile=99):
-        """Compute P-limit over a reference period."""
+        """Compute a strict percentile P-limit over the reference period."""
         aligned = align_to_index(series, ref_index)
-        vals = aligned.dropna()
-        if len(vals) > 10:
-            return np.percentile(vals, percentile)
-        return vals.max() if len(vals) > 0 else 1.0
+        vals = aligned.to_numpy(dtype=float)
+
+        if len(vals) == 0:
+            raise ValueError("Cannot compute P-limit from zero observations.")
+        if not np.isfinite(vals).all():
+            raise ValueError("P-limit reference values must be finite.")
+
+        p_limit = float(np.percentile(vals, percentile))
+        if not np.isfinite(p_limit) or p_limit <= 0:
+            raise ValueError(
+                f"Invalid P{percentile} calibration value: {p_limit}"
+            )
+        return p_limit
 
     # ── Build substitution configurations ──
     def compute_sep_with_sub(crisis_rho_vals, crisis_psi_vals, crisis_omega_vals,
@@ -196,7 +285,11 @@ def run_substitution_test():
         control_stress = control_rho_vals * control_psi_vals * control_omega_vals
         pi_cr = (crisis_stress * dt).sum()
         pi_ct = (control_stress * dt).sum()
-        return pi_cr, pi_ct, pi_cr / pi_ct if pi_ct > 0 else float('inf')
+        if not np.isfinite(pi_cr) or not np.isfinite(pi_ct):
+            raise ValueError("Cumulative stress values must be finite.")
+        if pi_ct <= 0:
+            raise ValueError("Control cumulative stress must be positive.")
+        return pi_cr, pi_ct, pi_cr / pi_ct
 
     def compute_post_control_mean_with_sub(
         crisis_rho_vals,
@@ -293,78 +386,132 @@ def run_substitution_test():
     }]
 
     # ── Prepare alternative normalized channels ──
-    def normalize_alt(series_key, transform, crisis_idx, control_idx):
+    def normalize_alt(
+        series_key,
+        transform,
+        crisis_idx,
+        control_idx,
+        calibration_idx,
+    ):
         """
-        Normalize an alternative FRED variable using the same approach
-        as the baseline: P-limit from control period, then divide.
-        Returns (crisis_norm, control_norm) or (None, None) if unavailable.
+        Substitute one source series while preserving the baseline channel
+        transformation and calibration definition.
+
+        - rho/psi alternatives: absolute 5-observation first difference
+        - omega alternative: level
+        - P-limit: 99th percentile over the fixed 2008 calibration period
+
+        Source transformations are computed before date alignment. Alignment
+        is causal: only observations available on or before a target date are
+        carried forward.
         """
         if series_key not in alt_series:
-            return None, None
+            raise KeyError(f"Required alternative series missing: {series_key}")
 
-        raw = alt_series[series_key]
+        raw = alt_series[series_key].copy().sort_index()
 
-        # Align to crisis and control indices
-        crisis_vals = align_to_index(raw, crisis_idx)
-        control_vals = align_to_index(raw, control_idx)
+        if transform == "abs_diff_5":
+            transformed = raw.diff(DELTA_OBSERVATIONS).abs().dropna()
 
-        # Apply transform
-        if transform == 'pct_change':
-            # Need broader series for pct_change, align and compute
-            all_idx = crisis_idx.union(control_idx).sort_values()
-            all_vals = align_to_index(raw, all_idx)
-            all_pct = all_vals.pct_change().abs().fillna(0)
-            crisis_vals = all_pct.reindex(crisis_idx).fillna(0)
-            control_vals = all_pct.reindex(control_idx).fillna(0)
+        elif transform == "level":
+            transformed = raw.dropna()
 
-        # P-limit from control period
-        p99 = np.percentile(control_vals.dropna(), 99) if len(control_vals.dropna()) > 10 else control_vals.max()
-        p99 = max(p99, 1e-10)
+        else:
+            raise ValueError(f"Unsupported transform: {transform}")
 
-        return crisis_vals / p99, control_vals / p99
+        if transformed.empty:
+            raise ValueError(
+                f"{series_key}: transformation produced no usable observations."
+            )
+
+        # P-limit uses the same fixed calibration period as the baseline.
+        p99 = compute_plimit(
+            transformed,
+            calibration_idx,
+            percentile=99,
+        )
+
+        # Align only after transformation so missing target dates do not
+        # change the definition of a five-observation difference.
+        crisis_vals = align_to_index(transformed, crisis_idx)
+        control_vals = align_to_index(transformed, control_idx)
+
+        crisis_norm = crisis_vals / p99
+        control_norm = control_vals / p99
+
+        for label, values in (
+            ("crisis", crisis_norm),
+            ("control", control_norm),
+        ):
+            arr = values.to_numpy(dtype=float)
+            if values.isna().any() or not np.isfinite(arr).all():
+                raise ValueError(
+                    f"{series_key}: {label} normalized values must be "
+                    "complete and finite."
+                )
+            if (arr < 0).any():
+                raise ValueError(
+                    f"{series_key}: normalized values must be non-negative."
+                )
+
+        return crisis_norm, control_norm
 
     crisis_idx = crisis_df.index
     ctrl_idx = control_df.index
 
     # Prepare alt channels
-    alt_rho_cr, alt_rho_ct = normalize_alt('DGS2', 'raw', crisis_idx, ctrl_idx)
-    alt_psi_cr, alt_psi_ct = normalize_alt('VIXCLS', 'raw', crisis_idx, ctrl_idx)
-    alt_omega_cr, alt_omega_ct = normalize_alt('COMPOUT', 'pct_change', crisis_idx, ctrl_idx)
+    alt_rho_cr, alt_rho_ct = normalize_alt(
+        'DGS2',
+        'abs_diff_5',
+        crisis_idx,
+        ctrl_idx,
+        calibration_idx,
+    )
+    alt_psi_cr, alt_psi_ct = normalize_alt(
+        'VIXCLS',
+        'abs_diff_5',
+        crisis_idx,
+        ctrl_idx,
+        calibration_idx,
+    )
+    alt_omega_cr, alt_omega_ct = normalize_alt(
+        'COMPOUT',
+        'level',
+        crisis_idx,
+        ctrl_idx,
+        calibration_idx,
+    )
 
     # ── Run substitutions ──
-    subs = []
-
-    if alt_rho_cr is not None:
-        subs.append({
+    subs = [
+        {
             'name': 'rho -> DGS2 (2-Year Treasury)',
             'cr': (alt_rho_cr, crisis_psi, crisis_omega),
             'ct': (alt_rho_ct, control_psi, control_omega),
             'labels': ('DGS2', 'TEDRATE', 'TOTBKCR'),
-        })
-
-    if alt_psi_cr is not None:
-        subs.append({
+        },
+        {
             'name': 'Psi -> VIXCLS (VIX)',
             'cr': (crisis_rho, alt_psi_cr, crisis_omega),
             'ct': (control_rho, alt_psi_ct, control_omega),
             'labels': ('DFF', 'VIXCLS', 'TOTBKCR'),
-        })
-
-    if alt_omega_cr is not None:
-        subs.append({
+        },
+        {
             'name': 'Omega -> COMPOUT (Commercial Paper)',
             'cr': (crisis_rho, crisis_psi, alt_omega_cr),
             'ct': (control_rho, control_psi, alt_omega_ct),
             'labels': ('DFF', 'TEDRATE', 'COMPOUT'),
-        })
-
-    if all(x is not None for x in [alt_rho_cr, alt_psi_cr, alt_omega_cr]):
-        subs.append({
+        },
+        {
             'name': 'All three substituted (DGS2 x VIX x COMPOUT)',
             'cr': (alt_rho_cr, alt_psi_cr, alt_omega_cr),
             'ct': (alt_rho_ct, alt_psi_ct, alt_omega_ct),
             'labels': ('DGS2', 'VIXCLS', 'COMPOUT'),
-        })
+        },
+    ]
+
+    if len(subs) != 4:
+        raise AssertionError("Expected exactly four substitution configurations.")
 
     for sub in subs:
         print(f'\n  Testing: {sub["name"]}...')
@@ -411,6 +558,11 @@ def run_substitution_test():
         })
 
     # ── Save ──
+    if len(results) != 5 or len(post_control_results) != 5:
+        raise AssertionError(
+            "Expected baseline plus four substitution configurations."
+        )
+
     df = pd.DataFrame(results)
     df.to_csv(
         os.path.join(OUT_DIR, 'table_variable_substitution.csv'),
@@ -475,10 +627,7 @@ def main():
     print('  Using existing crisis/control date indices')
     print('=' * 75)
 
-    results = run_substitution_test()
-    if results is None:
-        print('\n  Test skipped (no API key or missing data)')
-        sys.exit(0)
+    run_substitution_test()
     print()
 
 

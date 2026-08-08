@@ -1,71 +1,71 @@
 Varied_param,Param_value,Case,Pct_of_max,Lead_days,Mode
 preloaded_cutoff,0.7,2008 Financial,49.9,396,Ductile
 preloaded_cutoff,0.7,Terra-Luna,93.3,230,Pre-loaded
-preloaded_cutoff,0.7,Fukushima,45.9,226,Brittle
+preloaded_cutoff,0.7,Fukushima,36.2,211,Brittle
 preloaded_cutoff,0.7,COVID-19,10.3,0,Brittle
 preloaded_cutoff,0.7,Supply Chain,65.7,548,Ductile
 preloaded_cutoff,0.75,2008 Financial,49.9,396,Ductile
 preloaded_cutoff,0.75,Terra-Luna,93.3,230,Pre-loaded
-preloaded_cutoff,0.75,Fukushima,45.9,226,Brittle
+preloaded_cutoff,0.75,Fukushima,36.2,211,Brittle
 preloaded_cutoff,0.75,COVID-19,10.3,0,Brittle
 preloaded_cutoff,0.75,Supply Chain,65.7,548,Ductile
 preloaded_cutoff,0.8,2008 Financial,49.9,396,Ductile
 preloaded_cutoff,0.8,Terra-Luna,93.3,230,Pre-loaded
-preloaded_cutoff,0.8,Fukushima,45.9,226,Brittle
+preloaded_cutoff,0.8,Fukushima,36.2,211,Brittle
 preloaded_cutoff,0.8,COVID-19,10.3,0,Brittle
 preloaded_cutoff,0.8,Supply Chain,65.7,548,Ductile
 preloaded_cutoff,0.85,2008 Financial,49.9,396,Ductile
 preloaded_cutoff,0.85,Terra-Luna,93.3,230,Pre-loaded
-preloaded_cutoff,0.85,Fukushima,45.9,226,Brittle
+preloaded_cutoff,0.85,Fukushima,36.2,211,Brittle
 preloaded_cutoff,0.85,COVID-19,10.3,0,Brittle
 preloaded_cutoff,0.85,Supply Chain,65.7,548,Ductile
 preloaded_cutoff,0.9,2008 Financial,49.9,396,Ductile
 preloaded_cutoff,0.9,Terra-Luna,93.3,230,Pre-loaded
-preloaded_cutoff,0.9,Fukushima,45.9,226,Brittle
+preloaded_cutoff,0.9,Fukushima,36.2,211,Brittle
 preloaded_cutoff,0.9,COVID-19,10.3,0,Brittle
 preloaded_cutoff,0.9,Supply Chain,65.7,548,Ductile
 ductile_lead_cutoff,200.0,2008 Financial,49.9,396,Ductile
 ductile_lead_cutoff,200.0,Terra-Luna,93.3,230,Pre-loaded
-ductile_lead_cutoff,200.0,Fukushima,45.9,226,Ductile
+ductile_lead_cutoff,200.0,Fukushima,36.2,211,Ductile
 ductile_lead_cutoff,200.0,COVID-19,10.3,0,Brittle
 ductile_lead_cutoff,200.0,Supply Chain,65.7,548,Ductile
 ductile_lead_cutoff,250.0,2008 Financial,49.9,396,Ductile
 ductile_lead_cutoff,250.0,Terra-Luna,93.3,230,Pre-loaded
-ductile_lead_cutoff,250.0,Fukushima,45.9,226,Brittle
+ductile_lead_cutoff,250.0,Fukushima,36.2,211,Brittle
 ductile_lead_cutoff,250.0,COVID-19,10.3,0,Brittle
 ductile_lead_cutoff,250.0,Supply Chain,65.7,548,Ductile
 ductile_lead_cutoff,300.0,2008 Financial,49.9,396,Ductile
 ductile_lead_cutoff,300.0,Terra-Luna,93.3,230,Pre-loaded
-ductile_lead_cutoff,300.0,Fukushima,45.9,226,Brittle
+ductile_lead_cutoff,300.0,Fukushima,36.2,211,Brittle
 ductile_lead_cutoff,300.0,COVID-19,10.3,0,Brittle
 ductile_lead_cutoff,300.0,Supply Chain,65.7,548,Ductile
 ductile_lead_cutoff,350.0,2008 Financial,49.9,396,Ductile
 ductile_lead_cutoff,350.0,Terra-Luna,93.3,230,Pre-loaded
-ductile_lead_cutoff,350.0,Fukushima,45.9,226,Brittle
+ductile_lead_cutoff,350.0,Fukushima,36.2,211,Brittle
 ductile_lead_cutoff,350.0,COVID-19,10.3,0,Brittle
 ductile_lead_cutoff,350.0,Supply Chain,65.7,548,Ductile
 ductile_lead_cutoff,400.0,2008 Financial,49.9,396,Brittle
 ductile_lead_cutoff,400.0,Terra-Luna,93.3,230,Pre-loaded
-ductile_lead_cutoff,400.0,Fukushima,45.9,226,Brittle
+ductile_lead_cutoff,400.0,Fukushima,36.2,211,Brittle
 ductile_lead_cutoff,400.0,COVID-19,10.3,0,Brittle
 ductile_lead_cutoff,400.0,Supply Chain,65.7,548,Ductile
 onset_threshold,0.05,2008 Financial,49.9,509,Ductile
 onset_threshold,0.05,Terra-Luna,93.3,243,Pre-loaded
-onset_threshold,0.05,Fukushima,45.9,246,Brittle
+onset_threshold,0.05,Fukushima,36.2,232,Brittle
 onset_threshold,0.05,COVID-19,10.3,4,Brittle
 onset_threshold,0.05,Supply Chain,65.7,548,Ductile
 onset_threshold,0.1,2008 Financial,49.9,396,Ductile
 onset_threshold,0.1,Terra-Luna,93.3,230,Pre-loaded
-onset_threshold,0.1,Fukushima,45.9,226,Brittle
+onset_threshold,0.1,Fukushima,36.2,211,Brittle
 onset_threshold,0.1,COVID-19,10.3,0,Brittle
 onset_threshold,0.1,Supply Chain,65.7,548,Ductile
 onset_threshold,0.15,2008 Financial,49.9,390,Ductile
 onset_threshold,0.15,Terra-Luna,93.3,216,Pre-loaded
-onset_threshold,0.15,Fukushima,45.9,210,Brittle
+onset_threshold,0.15,Fukushima,36.2,192,Brittle
 onset_threshold,0.15,COVID-19,10.3,-2,Brittle
 onset_threshold,0.15,Supply Chain,65.7,242,Brittle
 onset_threshold,0.2,2008 Financial,49.9,361,Ductile
 onset_threshold,0.2,Terra-Luna,93.3,186,Pre-loaded
-onset_threshold,0.2,Fukushima,45.9,192,Brittle
+onset_threshold,0.2,Fukushima,36.2,176,Brittle
 onset_threshold,0.2,COVID-19,10.3,-4,Brittle
 onset_threshold,0.2,Supply Chain,65.7,214,Brittle

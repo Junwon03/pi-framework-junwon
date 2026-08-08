@@ -1,9 +1,9 @@
 """
-Pi Framework — v12 Enhancements
-================================
-Three new analyses to strengthen NatComms submission:
-  1. Time-normalized stress intensity (Π/T = mean S) — addresses window-length bias
-  2. Sliding-window control distributions — addresses single-control criticism  
+Pi Framework — legacy v12 retrospective diagnostics
+====================================================
+Three retained retrospective audit analyses:
+  1. Time-normalized stress intensity (Π/T = mean S)
+  2. Control-window descriptive sensitivity
   3. Exploratory pattern-label threshold sensitivity
 
 Designed to run alongside existing run_all.py using the same data/ folder.
@@ -67,31 +67,204 @@ CASES = {
     },
 }
 
-np.random.seed(42)
+DPY_BY_CASE = {
+    '2008 Financial': 365,
+    'Terra-Luna': 365,
+    'Fukushima': 365,
+    'COVID-19': 365,
+    'Supply Chain': 12,
+}
 
 
 # ================================================================
 # UTILITIES
 # ================================================================
 
+def case_dt(name):
+    if name not in DPY_BY_CASE:
+        raise KeyError(
+            f"No explicit observations-per-year mapping for {name}."
+        )
+
+    dpy = DPY_BY_CASE[name]
+
+    if not np.isfinite(dpy) or dpy <= 0:
+        raise ValueError(
+            f"{name}: observations per year must be positive and finite."
+        )
+
+    return 1.0 / float(dpy)
+
+
+def positive_finite_ratio(numerator, denominator, label):
+    numerator = float(numerator)
+    denominator = float(denominator)
+
+    if not np.isfinite(numerator):
+        raise ValueError(
+            f"{label}: numerator is non-finite."
+        )
+
+    if not np.isfinite(denominator) or denominator <= 0:
+        raise ValueError(
+            f"{label}: denominator must be positive and finite; "
+            f"got {denominator}."
+        )
+
+    ratio = numerator / denominator
+
+    if not np.isfinite(ratio):
+        raise ValueError(
+            f"{label}: ratio is non-finite."
+        )
+
+    return ratio
+
+
+def validate_case_frame(name, role, df):
+    required = {
+        'rho_norm',
+        'psi_norm',
+        'omega_norm',
+        'stress',
+    }
+
+    missing = required - set(df.columns)
+
+    if missing:
+        raise ValueError(
+            f"{name}/{role}: missing required columns "
+            f"{sorted(missing)}."
+        )
+
+    if df.empty:
+        raise ValueError(
+            f"{name}/{role}: empty dataframe."
+        )
+
+    if not isinstance(df.index, pd.DatetimeIndex):
+        raise ValueError(
+            f"{name}/{role}: index must be DatetimeIndex."
+        )
+
+    if df.index.has_duplicates:
+        raise ValueError(
+            f"{name}/{role}: duplicate dates."
+        )
+
+    if not df.index.is_monotonic_increasing:
+        raise ValueError(
+            f"{name}/{role}: dates must be chronological."
+        )
+
+    channels = df[
+        ['rho_norm', 'psi_norm', 'omega_norm']
+    ].to_numpy(dtype=float)
+
+    stress = df['stress'].to_numpy(dtype=float)
+
+    if not np.isfinite(channels).all():
+        raise ValueError(
+            f"{name}/{role}: non-finite normalized channels."
+        )
+
+    if not np.isfinite(stress).all():
+        raise ValueError(
+            f"{name}/{role}: non-finite stress."
+        )
+
+    if (channels < 0).any() or (stress < 0).any():
+        raise ValueError(
+            f"{name}/{role}: normalized channels and stress "
+            "must be nonnegative."
+        )
+
+    expected = (
+        channels[:, 0]
+        * channels[:, 1]
+        * channels[:, 2]
+    )
+
+    if not np.allclose(
+        stress,
+        expected,
+        rtol=1e-12,
+        atol=1e-12,
+    ):
+        max_diff = float(
+            np.max(
+                np.abs(stress - expected)
+            )
+        )
+
+        raise ValueError(
+            f"{name}/{role}: stored stress mismatch; "
+            f"max_abs_diff={max_diff:.12g}."
+        )
+
+
 def load_case(name):
+    if name not in CASES:
+        raise KeyError(
+            f"Unknown case: {name}"
+        )
+
     info = CASES[name]
-    cr = pd.read_csv(os.path.join(DATA_DIR, info['crisis']),
-                     index_col=0, parse_dates=True)
-    ct = pd.read_csv(os.path.join(DATA_DIR, info['control']),
-                     index_col=0, parse_dates=True)
-    for df in [cr, ct]:
-        dt = estimate_dt(df)
-        df['pi'] = (df['stress'] * dt).cumsum()
+
+    crisis_path = os.path.join(
+        DATA_DIR,
+        info['crisis'],
+    )
+
+    control_path = os.path.join(
+        DATA_DIR,
+        info['control'],
+    )
+
+    if not os.path.isfile(crisis_path):
+        raise FileNotFoundError(crisis_path)
+
+    if not os.path.isfile(control_path):
+        raise FileNotFoundError(control_path)
+
+    cr = pd.read_csv(
+        crisis_path,
+        index_col=0,
+        parse_dates=True,
+    ).sort_index()
+
+    ct = pd.read_csv(
+        control_path,
+        index_col=0,
+        parse_dates=True,
+    ).sort_index()
+
+    validate_case_frame(
+        name,
+        'crisis',
+        cr,
+    )
+
+    validate_case_frame(
+        name,
+        'control',
+        ct,
+    )
+
+    dt = case_dt(name)
+
+    cr = cr.copy()
+    ct = ct.copy()
+
+    cr['pi'] = (
+        cr['stress'] * dt
+    ).cumsum()
+
+    ct['pi'] = (
+        ct['stress'] * dt
+    ).cumsum()
+
     return cr, ct
-
-
-def estimate_dt(df):
-    if len(df) > 1:
-        avg_gap = (df.index[-1] - df.index[0]).days / len(df)
-        return 1.0/12 if avg_gap > 20 else 1.0/365
-    return 1.0/365
-
 
 # ================================================================
 # ENHANCEMENT 1: TIME-NORMALIZED STRESS INTENSITY (Π/T)
@@ -99,37 +272,67 @@ def estimate_dt(df):
 
 def run_time_normalized():
     """
-    Calculate mean stress intensity S̄ = Π / T for each period.
-    This removes window-length bias: if crisis is 2× longer than control,
-    Π is naturally ~2× larger. S̄ corrects for this.
-    
-    Reports both Π-based and S̄-based separation ratios.
+    Report cumulative Pi and mean-stress intensity for the selected
+    retrospective crisis/control periods. This is a descriptive
+    window-length normalization, not prospective validation.
     """
     print('=' * 75)
     print('  ENHANCEMENT 1: Time-Normalized Stress Intensity (Π/T)')
-    print('  Addresses reviewer concern: "window lengths differ"')
+    print('  Retrospective descriptive window-length normalization')
     print('=' * 75)
 
     rows = []
 
     for name, info in CASES.items():
         cr, ct = load_case(name)
-        dt_cr = estimate_dt(cr)
-        dt_ct = estimate_dt(ct)
+        dt = case_dt(name)
 
-        # Π (cumulative, existing)
-        pi_cr = (cr['stress'] * dt_cr).sum()
-        pi_ct = (ct['stress'] * dt_ct).sum()
-        sep_pi = pi_cr / pi_ct if pi_ct > 0 else float('inf')
+        pi_cr = float(
+            (cr['stress'] * dt).sum()
+        )
 
-        # T (duration in years)
-        T_cr = len(cr) * dt_cr
-        T_ct = len(ct) * dt_ct
+        pi_ct = float(
+            (ct['stress'] * dt).sum()
+        )
 
-        # S̄ = Π / T (mean stress intensity per unit time)
-        s_bar_cr = pi_cr / T_cr if T_cr > 0 else 0
-        s_bar_ct = pi_ct / T_ct if T_ct > 0 else 0
-        sep_sbar = s_bar_cr / s_bar_ct if s_bar_ct > 0 else float('inf')
+        sep_pi = positive_finite_ratio(
+            pi_cr,
+            pi_ct,
+            f"{name}/Pi",
+        )
+
+        T_cr = len(cr) * dt
+        T_ct = len(ct) * dt
+
+        if T_cr <= 0 or T_ct <= 0:
+            raise ValueError(
+                f"{name}: nonpositive analytical duration."
+            )
+
+        s_bar_cr = pi_cr / T_cr
+        s_bar_ct = pi_ct / T_ct
+
+        sep_sbar = positive_finite_ratio(
+            s_bar_cr,
+            s_bar_ct,
+            f"{name}/Sbar",
+        )
+
+        values = [
+            pi_cr,
+            pi_ct,
+            sep_pi,
+            T_cr,
+            T_ct,
+            s_bar_cr,
+            s_bar_ct,
+            sep_sbar,
+        ]
+
+        if not np.isfinite(values).all():
+            raise ValueError(
+                f"{name}: non-finite time-normalized result."
+            )
 
         rows.append({
             'Case': name,
@@ -146,23 +349,43 @@ def run_time_normalized():
         })
 
         print(f'\n  {name}:')
-        print(f'    Crisis:  N={len(cr):>4}, T={T_cr:.3f}yr, Π={pi_cr:.4f}, S̄={s_bar_cr:.4f}')
-        print(f'    Control: N={len(ct):>4}, T={T_ct:.3f}yr, Π={pi_ct:.4f}, S̄={s_bar_ct:.4f}')
-        print(f'    Sep(Π)={sep_pi:.1f}×  Sep(S̄)={sep_sbar:.1f}×')
+        print(
+            f'    Crisis:  N={len(cr):>4}, T={T_cr:.3f}yr, '
+            f'Π={pi_cr:.4f}, S̄={s_bar_cr:.4f}'
+        )
+        print(
+            f'    Control: N={len(ct):>4}, T={T_ct:.3f}yr, '
+            f'Π={pi_ct:.4f}, S̄={s_bar_ct:.4f}'
+        )
+        print(
+            f'    Sep(Π)={sep_pi:.1f}×  '
+            f'Sep(S̄)={sep_sbar:.1f}×'
+        )
+
+    if len(rows) != len(CASES):
+        raise RuntimeError(
+            "Time-normalized analysis did not return every case."
+        )
 
     df = pd.DataFrame(rows)
-    df.to_csv(os.path.join(OUT_DIR, 'table_enhanced_time_normalized.csv'), index=False)
 
-    print(f'\n  Summary:')
-    print(f'  {"Case":<18} {"Sep(Π)":<10} {"Sep(S̄)":<10} {"Change":<10}')
-    print(f'  {"-"*48}')
-    for r in rows:
-        change = (r['Sep_Sbar'] / r['Sep_Pi'] - 1) * 100
-        print(f'  {r["Case"]:<18} {r["Sep_Pi"]:<10.1f}× {r["Sep_Sbar"]:<10.1f}× {change:+.1f}%')
+    output_path = os.path.join(
+        OUT_DIR,
+        'table_enhanced_time_normalized.csv',
+    )
+
+    df.to_csv(
+        output_path,
+        index=False,
+    )
+
+    if not os.path.isfile(output_path) or os.path.getsize(output_path) <= 0:
+        raise RuntimeError(
+            "Time-normalized output was not created."
+        )
 
     print(f'\n  Saved: table_enhanced_time_normalized.csv')
     return rows
-
 
 # ================================================================
 # ENHANCEMENT 2: SLIDING WINDOW CONTROL DISTRIBUTION
@@ -170,116 +393,293 @@ def run_time_normalized():
 
 def run_sliding_controls():
     """
-    For each case, generate multiple control Π values using sliding windows
-    from the pre-crisis stable period. This shows that the single control
-    is representative and provides a distribution for effect-size estimation.
-    
-    For daily cases: 180-day windows, sliding every 30 days
-    For monthly: 12-month windows, sliding every 3 months
+    Retrospective control-window descriptive diagnostic.
+
+    Windows use the crisis-period observation count and a deterministic
+    observation step. If the available control series cannot provide
+    multiple eligible windows, the full available control is reported
+    as a single descriptive comparator. No inferential standard deviation
+    or standardized distance is invented for a one-window comparator.
     """
     print(f'\n\n{"=" * 75}')
-    print('  ENHANCEMENT 2: Sliding-Window Control Distribution')
-    print('  Addresses reviewer concern: "only one control period"')
+    print('  ENHANCEMENT 2: Control-Window Descriptive Diagnostic')
+    print('  Retrospective sensitivity; not an inferential control distribution')
     print('=' * 75)
-
-    # We need the full stable-period data, not just the pre-computed control
-    # Since we only have crisis + control CSVs, we'll use the control period
-    # and split it into overlapping sub-windows to show distribution.
-    # Additionally, we can use the crisis CSV stable period if available.
 
     all_results = []
 
     for name, info in CASES.items():
         cr, ct = load_case(name)
-        dt_cr = estimate_dt(cr)
-        dt_ct = estimate_dt(ct)
+        dt = case_dt(name)
 
-        pi_crisis = (cr['stress'] * dt_cr).sum()
-        T_crisis = len(cr) * dt_cr  # crisis duration in years
+        pi_crisis = float(
+            (cr['stress'] * dt).sum()
+        )
 
-        # Use control data for sliding windows
-        needed = ['rho_norm', 'psi_norm', 'omega_norm']
-        if not all(c in ct.columns for c in needed):
-            print(f'  {name}: Missing norm columns, skipping')
-            continue
+        T_crisis = len(cr) * dt
 
-        # Determine window size = same as crisis period length (for fair comparison)
+        if T_crisis <= 0:
+            raise ValueError(
+                f"{name}: crisis duration must be positive."
+            )
+
         crisis_len = len(cr)
-        
-        # For sliding controls, use windows of crisis_len from control period
-        # If control is shorter than crisis, use full control
         control_len = len(ct)
-        
+
         if info['freq'] == 'monthly':
-            step = max(1, crisis_len // 4)  # slide by ~25% of window
+            step = max(
+                1,
+                crisis_len // 4,
+            )
         else:
-            step = max(1, crisis_len // 6)  # slide by ~17% of window
+            step = max(
+                1,
+                crisis_len // 6,
+            )
 
         window_pis = []
         window_sbars = []
-        starts = range(0, max(1, control_len - crisis_len + 1), step)
+
+        starts = range(
+            0,
+            max(
+                1,
+                control_len - crisis_len + 1,
+            ),
+            step,
+        )
+
+        minimum_eligible = max(
+            crisis_len // 2,
+            5,
+        )
 
         for start in starts:
-            end = min(start + crisis_len, control_len)
-            window = ct.iloc[start:end]
-            if len(window) < max(crisis_len // 2, 5):
+            end = min(
+                start + crisis_len,
+                control_len,
+            )
+
+            window = ct.iloc[
+                start:end
+            ]
+
+            # Partial windows shorter than the prespecified minimum are
+            # not treated as eligible sliding windows.
+            if len(window) < minimum_eligible:
                 continue
-            stress_w = window['rho_norm'] * window['psi_norm'] * window['omega_norm']
-            pi_w = (stress_w * dt_ct).sum()
-            T_w = len(window) * dt_ct
-            sbar_w = pi_w / T_w if T_w > 0 else 0
-            window_pis.append(pi_w)
-            window_sbars.append(sbar_w)
+
+            stress_w = window[
+                'stress'
+            ].to_numpy(dtype=float)
+
+            pi_w = float(
+                np.sum(stress_w * dt)
+            )
+
+            T_w = len(window) * dt
+
+            if T_w <= 0:
+                raise ValueError(
+                    f"{name}: nonpositive control-window duration."
+                )
+
+            sbar_w = pi_w / T_w
+
+            if (
+                not np.isfinite(pi_w)
+                or pi_w <= 0
+                or not np.isfinite(sbar_w)
+                or sbar_w <= 0
+            ):
+                raise ValueError(
+                    f"{name}: invalid control-window result."
+                )
+
+            window_pis.append(
+                pi_w
+            )
+
+            window_sbars.append(
+                sbar_w
+            )
 
         if len(window_pis) == 0:
-            # Fall back: just use full control as single window
-            stress_ct = ct['rho_norm'] * ct['psi_norm'] * ct['omega_norm']
-            pi_ct = (stress_ct * dt_ct).sum()
-            window_pis = [pi_ct]
-            T_ct = len(ct) * dt_ct
-            window_sbars = [pi_ct / T_ct if T_ct > 0 else 0]
+            pi_ct = float(
+                (ct['stress'] * dt).sum()
+            )
 
-        # Effect size: (crisis - mean_control) / std_control (Cohen's d analog)
-        mean_ctrl = np.mean(window_pis)
-        std_ctrl = np.std(window_pis) if len(window_pis) > 1 else mean_ctrl * 0.1
-        effect_d = (pi_crisis - mean_ctrl) / std_ctrl if std_ctrl > 0 else float('inf')
+            T_ct = len(ct) * dt
 
-        # S̄-based
-        sbar_crisis = pi_crisis / T_crisis if T_crisis > 0 else 0
-        mean_sbar_ctrl = np.mean(window_sbars)
-        std_sbar_ctrl = np.std(window_sbars) if len(window_sbars) > 1 else mean_sbar_ctrl * 0.1
+            if T_ct <= 0:
+                raise ValueError(
+                    f"{name}: control duration must be positive."
+                )
 
-        # Sep vs each window
-        seps = [pi_crisis / w if w > 0 else float('inf') for w in window_pis]
+            sbar_ct = positive_finite_ratio(
+                pi_ct,
+                T_ct,
+                f"{name}/full-control Sbar",
+            )
+
+            window_pis = [
+                pi_ct
+            ]
+
+            window_sbars = [
+                sbar_ct
+            ]
+
+            status = (
+                'Single full-control descriptive fallback; '
+                'no eligible sliding window'
+            )
+
+        elif len(window_pis) == 1:
+            status = (
+                'Single eligible control comparator; '
+                'no inferential dispersion statistic'
+            )
+
+        else:
+            status = (
+                'Multiple overlapping control windows; '
+                'descriptive empirical diagnostic'
+            )
+
+        mean_ctrl = float(
+            np.mean(window_pis)
+        )
+
+        mean_sbar_ctrl = float(
+            np.mean(window_sbars)
+        )
+
+        sbar_crisis = pi_crisis / T_crisis
+
+        seps = [
+            positive_finite_ratio(
+                pi_crisis,
+                value,
+                f"{name}/control-window Pi",
+            )
+            for value in window_pis
+        ]
+
+        if len(window_pis) > 1:
+            std_ctrl = float(
+                np.std(
+                    window_pis,
+                    ddof=0,
+                )
+            )
+
+            std_sbar_ctrl = float(
+                np.std(
+                    window_sbars,
+                    ddof=0,
+                )
+            )
+
+            if (
+                not np.isfinite(std_ctrl)
+                or std_ctrl <= 0
+            ):
+                standardized_distance = 'N/A'
+            else:
+                standardized_distance = round(
+                    (
+                        pi_crisis
+                        - mean_ctrl
+                    )
+                    / std_ctrl,
+                    2,
+                )
+
+            std_ctrl_out = round(
+                std_ctrl,
+                4,
+            )
+
+            std_sbar_out = round(
+                std_sbar_ctrl,
+                4,
+            )
+
+        else:
+            std_ctrl_out = 'N/A'
+            std_sbar_out = 'N/A'
+            standardized_distance = 'N/A'
 
         result = {
             'Case': name,
             'N_windows': len(window_pis),
             'Pi_crisis': round(pi_crisis, 4),
             'Pi_ctrl_mean': round(mean_ctrl, 4),
-            'Pi_ctrl_std': round(std_ctrl, 4),
+            'Pi_ctrl_std': std_ctrl_out,
             'Pi_ctrl_min': round(min(window_pis), 4),
             'Pi_ctrl_max': round(max(window_pis), 4),
-            'Sep_mean': round(np.mean(seps), 1),
+            'Sep_mean': round(float(np.mean(seps)), 1),
             'Sep_min': round(min(seps), 1),
             'Sep_max': round(max(seps), 1),
-            'Effect_d': round(effect_d, 2),
+            'Standardized_distance_Pi': standardized_distance,
             'Sbar_crisis': round(sbar_crisis, 4),
             'Sbar_ctrl_mean': round(mean_sbar_ctrl, 4),
+            'Sbar_ctrl_std': std_sbar_out,
+            'Status': status,
         }
-        all_results.append(result)
 
-        print(f'\n  {name} ({len(window_pis)} control windows):')
-        print(f'    Π_crisis  = {pi_crisis:.4f}')
-        print(f'    Π_control = {mean_ctrl:.4f} ± {std_ctrl:.4f} [{min(window_pis):.4f} — {max(window_pis):.4f}]')
-        print(f'    Separation: mean={np.mean(seps):.1f}× [{min(seps):.1f}× — {max(seps):.1f}×]')
-        print(f'    Effect size (d) = {effect_d:.2f}')
+        all_results.append(
+            result
+        )
 
-    df = pd.DataFrame(all_results)
-    df.to_csv(os.path.join(OUT_DIR, 'table_enhanced_sliding_controls.csv'), index=False)
-    print(f'\n  Saved: table_enhanced_sliding_controls.csv')
+        print(
+            f'\n  {name} '
+            f'({len(window_pis)} control comparator window(s)):'
+        )
+        print(
+            f'    Π_crisis  = {pi_crisis:.4f}'
+        )
+        print(
+            f'    Π_control = {mean_ctrl:.4f}'
+        )
+        print(
+            f'    Separation: mean={np.mean(seps):.1f}× '
+            f'[{min(seps):.1f}× — {max(seps):.1f}×]'
+        )
+        print(
+            f'    Status: {status}'
+        )
+
+    if len(all_results) != len(CASES):
+        raise RuntimeError(
+            "Control-window diagnostic did not return every case."
+        )
+
+    df = pd.DataFrame(
+        all_results
+    )
+
+    output_path = os.path.join(
+        OUT_DIR,
+        'table_enhanced_sliding_controls.csv',
+    )
+
+    df.to_csv(
+        output_path,
+        index=False,
+    )
+
+    if not os.path.isfile(output_path) or os.path.getsize(output_path) <= 0:
+        raise RuntimeError(
+            "Control-window output was not created."
+        )
+
+    print(
+        f'\n  Saved: table_enhanced_sliding_controls.csv'
+    )
+
     return all_results
-
 
 # ================================================================
 # ENHANCEMENT 3: EXPLORATORY PATTERN-LABEL THRESHOLD SENSITIVITY

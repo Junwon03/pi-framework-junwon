@@ -136,16 +136,31 @@ def locate_data_dir() -> Path:
 DATA_DIR = locate_data_dir()
 
 
-def estimate_dt(frame: pd.DataFrame) -> float:
-    """Return the repository fixed per-observation weight convention."""
-    if len(frame) <= 1:
-        return 1.0 / 365.0
+DPY_BY_CASE = {
+    "2008 Financial": 365,
+    "Terra-Luna": 365,
+    "Fukushima": 365,
+    "COVID-19": 365,
+    "Supply Chain": 12,
+}
 
-    average_gap_days = (
-        frame.index[-1] - frame.index[0]
-    ).days / len(frame)
 
-    return 1.0 / 12.0 if average_gap_days > 20 else 1.0 / 365.0
+def case_dt(case_name: str) -> float:
+    """Return the explicit repository cadence for one selected case."""
+    if case_name not in DPY_BY_CASE:
+        raise KeyError(
+            f"No explicit observations-per-year mapping for {case_name}."
+        )
+
+    dpy = DPY_BY_CASE[case_name]
+
+    if not np.isfinite(dpy) or dpy <= 0:
+        raise ValueError(
+            f"{case_name}: observations per year must be positive "
+            "and finite."
+        )
+
+    return 1.0 / float(dpy)
 
 
 def load_case(case_name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -278,8 +293,8 @@ def build_primary_table() -> pd.DataFrame:
             and control.index.max() <= crisis.index.max()
         )
 
-        dt_crisis = estimate_dt(crisis)
-        dt_control = estimate_dt(control)
+        dt_crisis = case_dt(case_name)
+        dt_control = case_dt(case_name)
 
         cumulative_crisis = float(
             (crisis["stress"] * dt_crisis).sum()
@@ -500,8 +515,14 @@ def _permutation_summary(
 
     if null_std > 0:
         z_score = (observed - null_mean) / null_std
+    elif observed == null_mean:
+        z_score = 0.0
     else:
-        z_score = float("inf") if observed > null_mean else 0.0
+        raise ValueError(
+            "Permutation z-score is undefined because the null "
+            "distribution has zero variance while the observed value "
+            "differs from the null mean."
+        )
 
     return {
         "Null_mean_stress": null_mean,

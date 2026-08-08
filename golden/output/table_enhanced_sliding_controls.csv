@@ -1,6 +1,6 @@
-Case,N_windows,Pi_crisis,Pi_ctrl_mean,Pi_ctrl_std,Pi_ctrl_min,Pi_ctrl_max,Sep_mean,Sep_min,Sep_max,Effect_d,Sbar_crisis,Sbar_ctrl_mean
-2008 Financial,1,1.2579,0.0677,0.0068,0.0677,0.0677,18.6,18.6,18.6,175.78,0.4638,0.0431
-Terra-Luna,1,0.0776,0.04,0.004,0.04,0.04,1.9,1.9,1.9,9.39,0.0715,0.0679
-Fukushima,1,0.1406,0.0625,0.0062,0.0625,0.0625,2.3,2.3,2.3,12.51,0.1599,0.1288
-COVID-19,1,22.9154,0.0063,0.0006,0.0063,0.0063,3626.7,3626.7,3626.7,36256.6,39.8292,0.0155
-Supply Chain,1,0.2606,0.0283,0.0028,0.0283,0.0283,9.2,9.2,9.2,82.13,0.0665,0.02
+Case,N_windows,Pi_crisis,Pi_ctrl_mean,Pi_ctrl_std,Pi_ctrl_min,Pi_ctrl_max,Sep_mean,Sep_min,Sep_max,Standardized_distance_Pi,Sbar_crisis,Sbar_ctrl_mean,Sbar_ctrl_std,Status
+2008 Financial,1,1.2579,0.0677,N/A,0.0677,0.0677,18.6,18.6,18.6,N/A,0.4638,0.0431,N/A,Single eligible control comparator; no inferential dispersion statistic
+Terra-Luna,1,0.0776,0.04,N/A,0.04,0.04,1.9,1.9,1.9,N/A,0.0715,0.0679,N/A,Single eligible control comparator; no inferential dispersion statistic
+Fukushima,1,0.1197,0.0415,N/A,0.0415,0.0415,2.9,2.9,2.9,N/A,0.1361,0.0856,N/A,Single eligible control comparator; no inferential dispersion statistic
+COVID-19,1,22.9154,0.0063,N/A,0.0063,0.0063,3626.7,3626.7,3626.7,N/A,39.8292,0.0155,N/A,Single eligible control comparator; no inferential dispersion statistic
+Supply Chain,1,0.2606,0.0283,N/A,0.0283,0.0283,9.2,9.2,9.2,N/A,0.0665,0.02,N/A,Single full-control descriptive fallback; no eligible sliding window

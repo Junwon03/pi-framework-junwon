@@ -3,8 +3,8 @@
 =============================================
 2008 Global Financial Crisis
 
-실행: python main.py --fred-key YOUR_KEY
-또는: config.py에 FRED_API_KEY 설정 후 python main.py
+실행: python main.py --fred-key YOUR_KEY --fred-vintage YYYY-MM-DD
+또는: FRED_API_KEY와 FRED_VINTAGE_DATE 환경변수 설정 후 python main.py
 
 파이프라인:
     1. FRED 데이터 수집 (DFF, TEDRATE, TOTBKCR)
@@ -23,7 +23,7 @@ import numpy as np
 from datetime import datetime
 
 from config import (
-    FRED_API_KEY, OUTPUT_DIR,
+    FRED_API_KEY, FRED_VINTAGE_DATE, OUTPUT_DIR,
     CRISIS_START, CRISIS_END,
     NEG_CONTROL_START, NEG_CONTROL_END,
     CRISIS_DATE
@@ -37,15 +37,26 @@ from visualize import (
 )
 
 
-def run_phase1(fred_key: str = None):
-    """Phase 1 전체 파이프라인 실행"""
-    
-    # API 키 설정
+def run_phase1(
+    fred_key: str = None,
+    fred_vintage: str = None,
+):
+    """Phase 1 전체 파이프라인 실행."""
+
+    import config
+
     if fred_key:
-        import config
         config.FRED_API_KEY = fred_key
-        from data_fetcher import fetch_fred_series  # reload with new key
-    
+    if fred_vintage:
+        config.FRED_VINTAGE_DATE = fred_vintage
+
+    if not config.FRED_API_KEY:
+        raise RuntimeError("FRED_API_KEY is required.")
+    if not config.FRED_VINTAGE_DATE:
+        raise RuntimeError(
+            "FRED_VINTAGE_DATE is required for reproducible retrieval."
+        )
+
     print("")
     print("╔" + "═" * 68 + "╗")
     print("║" + "  Π STRUCTURAL STABILITY INDEX".center(68) + "║")
@@ -177,7 +188,14 @@ def run_phase1(fred_key: str = None):
     
     control_final = control_result['pi'].iloc[-1]
     
-    separation = pi_lehman / control_final if control_final > 0 else float('inf')
+    if not np.isfinite(pi_lehman):
+        raise ValueError("Crisis-date cumulative stress must be finite.")
+    if not np.isfinite(control_final) or control_final <= 0:
+        raise ValueError(
+            "Control cumulative stress must be positive and finite."
+        )
+
+    separation = pi_lehman / control_final
     
     print(f"""
     위기 시점 Π: {pi_lehman:.6f}
@@ -208,21 +226,38 @@ def run_phase1(fred_key: str = None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description='Π Structural Stability Index - Phase 1 Pilot'
+        description="Π Structural Stability Index - Phase 1 Pilot"
     )
     parser.add_argument(
-        '--fred-key', type=str, default=None,
-        help='FRED API Key (또는 config.py에 설정)'
+        "--fred-key",
+        type=str,
+        default=None,
+        help="FRED API key (or set FRED_API_KEY)",
     )
-    
+    parser.add_argument(
+        "--fred-vintage",
+        type=str,
+        default=None,
+        help=(
+            "Fixed FRED vintage date YYYY-MM-DD "
+            "(or set FRED_VINTAGE_DATE)"
+        ),
+    )
+
     args = parser.parse_args()
-    
+
     key = args.fred_key or FRED_API_KEY
-    
-    if key == "YOUR_FRED_API_KEY_HERE" or not key:
-        print("❌ FRED API 키를 설정하세요!")
-        print("   방법 1: python main.py --fred-key YOUR_KEY")
-        print("   방법 2: config.py의 FRED_API_KEY 수정")
+    vintage = args.fred_vintage or FRED_VINTAGE_DATE
+
+    if not key:
+        print("ERROR: FRED_API_KEY is required.")
         sys.exit(1)
-    
-    results = run_phase1(fred_key=key)
+
+    if not vintage:
+        print("ERROR: FRED_VINTAGE_DATE is required.")
+        sys.exit(1)
+
+    run_phase1(
+        fred_key=key,
+        fred_vintage=vintage,
+    )

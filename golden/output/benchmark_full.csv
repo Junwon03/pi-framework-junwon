@@ -17,15 +17,15 @@ Terra-Luna,Digital Assets,Ψ × Ω,2-Dual,0.187943,0.09737,1.93
 Terra-Luna,Digital Assets,ρ + Ψ + Ω,3-Triple,1.508109,0.836436,1.8
 Terra-Luna,Digital Assets,"max(ρ,Ψ,Ω)",3-Triple,0.963134,0.514663,1.87
 Terra-Luna,Digital Assets,ρ × Ψ × Ω,3-Triple,0.077564,0.040011,1.94
-Fukushima,Physical Infrastructure,ρ only,1-Single,0.797879,0.420076,1.9
+Fukushima,Physical Infrastructure,ρ only,1-Single,0.643968,0.274187,2.35
 Fukushima,Physical Infrastructure,Ψ only,1-Single,0.476504,0.243249,1.96
 Fukushima,Physical Infrastructure,Ω only,1-Single,0.25207,0.141835,1.78
-Fukushima,Physical Infrastructure,ρ × Ψ,2-Dual,0.437121,0.2107,2.07
-Fukushima,Physical Infrastructure,ρ × Ω,2-Dual,0.229188,0.122839,1.87
+Fukushima,Physical Infrastructure,ρ × Ψ,2-Dual,0.362096,0.141336,2.56
+Fukushima,Physical Infrastructure,ρ × Ω,2-Dual,0.187213,0.080871,2.31
 Fukushima,Physical Infrastructure,Ψ × Ω,2-Dual,0.151196,0.072107,2.1
-Fukushima,Physical Infrastructure,ρ + Ψ + Ω,3-Triple,1.526453,0.805159,1.9
-Fukushima,Physical Infrastructure,"max(ρ,Ψ,Ω)",3-Triple,0.830914,0.427277,1.94
-Fukushima,Physical Infrastructure,ρ × Ψ × Ω,3-Triple,0.140637,0.062468,2.25
+Fukushima,Physical Infrastructure,ρ + Ψ + Ω,3-Triple,1.372541,0.659271,2.08
+Fukushima,Physical Infrastructure,"max(ρ,Ψ,Ω)",3-Triple,0.770285,0.36717,2.1
+Fukushima,Physical Infrastructure,ρ × Ψ × Ω,3-Triple,0.119675,0.041493,2.88
 COVID-19,Pandemic / Public Health,ρ only,1-Single,5.924832,0.009156,647.1
 COVID-19,Pandemic / Public Health,Ψ only,1-Single,0.593125,0.27947,2.12
 COVID-19,Pandemic / Public Health,Ω only,1-Single,0.60634,0.357946,1.69

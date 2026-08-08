@@ -10,7 +10,8 @@ strictly after the control-window end. Neither analysis establishes warning,
 forecasting, prospective validation, or calibrated false-alarm performance.
 
 The optional ST16 method comparison is likewise retained only for audit
-reproducibility. Output filenames and numerical procedures remain unchanged.
+reproducibility. Its comparator definitions are retained while input validation,
+cadence handling, and non-finite failure behavior are explicit.
 
 Usage:
     python run_method_comparison.py
@@ -39,7 +40,13 @@ OUTPUT_DIR = os.path.join(_base, "output")
 FIG_DIR = os.path.join(OUTPUT_DIR, "figures", "legacy")
 os.makedirs(FIG_DIR, exist_ok=True)
 
-np.random.seed(42)
+DPY_BY_CASE = {
+    "2008 Financial": 365,
+    "Terra-Luna": 365,
+    "Fukushima": 365,
+    "COVID-19": 365,
+    "Supply Chain": 12,
+}
 
 CASES = {
     "2008 Financial": ("crisis_2008_pi.csv", "control_2004_2006_pi.csv"),
@@ -68,118 +75,628 @@ ROLLING_WINDOWS = {
 CHANNELS = ['rho_norm', 'psi_norm', 'omega_norm']
 
 
-def estimate_dt(df):
-    avg_gap = (df.index[-1] - df.index[0]).days / len(df)
-    return 1.0 / 12 if avg_gap > 20 else 1.0 / 365
+def case_dt(name):
+    if name not in DPY_BY_CASE:
+        raise KeyError(
+            f"No explicit observations-per-year mapping for {name}."
+        )
 
+    dpy = DPY_BY_CASE[name]
+
+    if not np.isfinite(dpy) or dpy <= 0:
+        raise ValueError(
+            f"{name}: observations per year must be positive and finite."
+        )
+
+    return 1.0 / float(dpy)
+
+
+def validate_method_frame(name, role, df):
+    required = {
+        "rho_norm",
+        "psi_norm",
+        "omega_norm",
+        "stress",
+    }
+
+    missing = required - set(df.columns)
+
+    if missing:
+        raise ValueError(
+            f"{name}/{role}: missing required columns "
+            f"{sorted(missing)}."
+        )
+
+    if df.empty:
+        raise ValueError(
+            f"{name}/{role}: empty dataframe."
+        )
+
+    if not isinstance(df.index, pd.DatetimeIndex):
+        raise ValueError(
+            f"{name}/{role}: index must be DatetimeIndex."
+        )
+
+    if df.index.has_duplicates:
+        raise ValueError(
+            f"{name}/{role}: duplicate dates."
+        )
+
+    if not df.index.is_monotonic_increasing:
+        raise ValueError(
+            f"{name}/{role}: dates must be chronological."
+        )
+
+    values = df[
+        [
+            "rho_norm",
+            "psi_norm",
+            "omega_norm",
+            "stress",
+        ]
+    ].to_numpy(dtype=float)
+
+    if not np.isfinite(values).all():
+        raise ValueError(
+            f"{name}/{role}: non-finite analytical values."
+        )
+
+    normalized = df[
+        ["rho_norm", "psi_norm", "omega_norm"]
+    ].to_numpy(dtype=float)
+
+    if (normalized < 0).any():
+        raise ValueError(
+            f"{name}/{role}: normalized channels must be nonnegative."
+        )
+
+    stress = df["stress"].to_numpy(dtype=float)
+
+    if (stress < 0).any():
+        raise ValueError(
+            f"{name}/{role}: stress must be nonnegative."
+        )
+
+    expected_stress = (
+        normalized[:, 0]
+        * normalized[:, 1]
+        * normalized[:, 2]
+    )
+
+    if not np.allclose(
+        stress,
+        expected_stress,
+        rtol=1e-12,
+        atol=1e-12,
+    ):
+        max_diff = float(
+            np.max(
+                np.abs(
+                    stress - expected_stress
+                )
+            )
+        )
+
+        raise ValueError(
+            f"{name}/{role}: stored stress does not equal "
+            "rho_norm*psi_norm*omega_norm; "
+            f"max_abs_diff={max_diff:.12g}."
+        )
+
+
+def load_method_case(name):
+    crisis_file, control_file = CASES[name]
+
+    crisis = pd.read_csv(
+        os.path.join(
+            DATA_DIR,
+            crisis_file,
+        ),
+        index_col=0,
+        parse_dates=True,
+    ).sort_index()
+
+    control = pd.read_csv(
+        os.path.join(
+            DATA_DIR,
+            control_file,
+        ),
+        index_col=0,
+        parse_dates=True,
+    ).sort_index()
+
+    validate_method_frame(
+        name,
+        "crisis",
+        crisis,
+    )
+
+    validate_method_frame(
+        name,
+        "control",
+        control,
+    )
+
+    return crisis, control
+
+
+def finite_nonzero_ratio(numerator, denominator, label):
+    numerator = float(numerator)
+    denominator = float(denominator)
+
+    if not np.isfinite(numerator):
+        raise ValueError(
+            f"{label}: numerator is non-finite."
+        )
+
+    if not np.isfinite(denominator):
+        raise ValueError(
+            f"{label}: denominator is non-finite."
+        )
+
+    # Some comparator metrics, especially AC(1), are signed.
+    # Do not impose an artificial positivity constraint.
+    if denominator == 0.0:
+        raise ValueError(
+            f"{label}: denominator is exactly zero."
+        )
+
+    ratio = numerator / denominator
+
+    if not np.isfinite(ratio):
+        raise ValueError(
+            f"{label}: ratio is non-finite."
+        )
+
+    return ratio
 
 # ═══════════════════════════════════════════════════════════════
 # Legacy audit analysis: method comparison
 # ═══════════════════════════════════════════════════════════════
 
+def require_finite(value, label):
+    value = float(value)
+
+    if not np.isfinite(value):
+        raise ValueError(
+            f"{label}: result is non-finite."
+        )
+
+    return value
+
+
 def compute_pi(df, dt):
-    return (df['stress'] * dt).sum()
+    return require_finite(
+        (df["stress"] * dt).sum(),
+        "Pi",
+    )
 
 
 def compute_csd_variance(df, window=None):
+    if len(df) < 3:
+        raise ValueError(
+            "CSD variance requires at least 3 observations."
+        )
+
     if window is None:
-        window = max(10, len(df) // 5)
-    window = min(window, len(df) - 1)
-    vars_ = []
+        window = max(
+            10,
+            len(df) // 5,
+        )
+
+    window = min(
+        window,
+        len(df) - 1,
+    )
+
+    if window < 2:
+        raise ValueError(
+            "CSD variance window must be at least 2."
+        )
+
+    values = []
+
     for col in CHANNELS:
-        rv = df[col].rolling(window, min_periods=max(2, window // 2)).var()
-        vars_.append(rv.mean())
-    return np.mean(vars_)
+        rolling_variance = (
+            df[col]
+            .rolling(
+                window,
+                min_periods=max(
+                    2,
+                    window // 2,
+                ),
+            )
+            .var()
+        )
+
+        value = float(
+            rolling_variance.mean()
+        )
+
+        values.append(
+            require_finite(
+                value,
+                f"CSD variance/{col}",
+            )
+        )
+
+    return require_finite(
+        np.mean(values),
+        "CSD variance aggregate",
+    )
 
 
 def compute_csd_autocorr(df, window=None):
-    if window is None:
-        window = max(10, len(df) // 5)
-    window = min(window, len(df) - 1)
-    acs = []
-    for col in CHANNELS:
-        ac = df[col].rolling(window, min_periods=max(2, window // 2)).apply(
-            lambda x: pd.Series(x).autocorr(lag=1) if len(x) > 1 else 0, raw=False
+    if len(df) < 3:
+        raise ValueError(
+            "CSD autocorrelation requires at least 3 observations."
         )
-        acs.append(ac.mean())
-    return np.mean(acs)
+
+    if window is None:
+        window = max(
+            10,
+            len(df) // 5,
+        )
+
+    window = min(
+        window,
+        len(df) - 1,
+    )
+
+    if window < 2:
+        raise ValueError(
+            "CSD autocorrelation window must be at least 2."
+        )
+
+    values = []
+
+    for col in CHANNELS:
+        rolling_ac = (
+            df[col]
+            .rolling(
+                window,
+                min_periods=max(
+                    2,
+                    window // 2,
+                ),
+            )
+            .apply(
+                lambda x: pd.Series(x).autocorr(lag=1),
+                raw=False,
+            )
+        )
+
+        value = float(
+            rolling_ac.mean()
+        )
+
+        values.append(
+            require_finite(
+                value,
+                f"CSD AC(1)/{col}",
+            )
+        )
+
+    return require_finite(
+        np.mean(values),
+        "CSD AC(1) aggregate",
+    )
 
 
 def compute_pca_stress(df, dt):
-    X = df[CHANNELS].dropna().values
-    if len(X) < 3:
-        return 0
-    pca = PCA(n_components=1)
-    pc1 = pca.fit_transform(X).flatten()
-    if np.corrcoef(pc1, X.mean(axis=1))[0, 1] < 0:
+    matrix = df[
+        CHANNELS
+    ].to_numpy(dtype=float)
+
+    if len(matrix) < 3:
+        raise ValueError(
+            "PCA-PC1 requires at least 3 observations."
+        )
+
+    if not np.isfinite(matrix).all():
+        raise ValueError(
+            "PCA-PC1 input contains non-finite values."
+        )
+
+    pca = PCA(
+        n_components=1
+    )
+
+    pc1 = (
+        pca
+        .fit_transform(matrix)
+        .ravel()
+    )
+
+    orientation_reference = (
+        matrix.mean(axis=1)
+    )
+
+    correlation = float(
+        np.corrcoef(
+            pc1,
+            orientation_reference,
+        )[0, 1]
+    )
+
+    if not np.isfinite(correlation):
+        raise ValueError(
+            "PCA-PC1 orientation correlation is undefined."
+        )
+
+    if correlation < 0:
         pc1 = -pc1
-    pc1 = np.clip(pc1, 0, None)
-    return np.sum(pc1) * dt
+
+    # Retain the legacy one-sided PCA stress definition:
+    # negative oriented PC1 scores contribute zero stress.
+    pc1 = np.clip(
+        pc1,
+        0,
+        None,
+    )
+
+    return require_finite(
+        np.sum(pc1) * dt,
+        "PCA-PC1",
+    )
 
 
 def compute_additive(df, dt):
-    s = df['rho_norm'] + df['psi_norm'] + df['omega_norm']
-    return (s * dt).sum()
+    stress = (
+        df["rho_norm"]
+        + df["psi_norm"]
+        + df["omega_norm"]
+    )
+
+    return require_finite(
+        (stress * dt).sum(),
+        "Additive",
+    )
 
 
 def compute_max_channel(df, dt):
-    s = np.maximum(np.maximum(df['rho_norm'], df['psi_norm']), df['omega_norm'])
-    return (s * dt).sum()
+    stress = np.maximum.reduce(
+        [
+            df["rho_norm"].to_numpy(dtype=float),
+            df["psi_norm"].to_numpy(dtype=float),
+            df["omega_norm"].to_numpy(dtype=float),
+        ]
+    )
 
+    return require_finite(
+        stress.sum() * dt,
+        "Max channel",
+    )
 
 def run_method_comparison():
     print("=" * 80)
-    print("  LEGACY AUDIT: Head-to-Head Method Comparison")
+    print(
+        "  LEGACY AUDIT: Head-to-Head Method Comparison"
+    )
     print("=" * 80)
 
     results = []
 
-    for name, (cf, ctf) in CASES.items():
-        cr = pd.read_csv(f"{DATA_DIR}/{cf}", index_col=0, parse_dates=True)
-        ct = pd.read_csv(f"{DATA_DIR}/{ctf}", index_col=0, parse_dates=True)
-        dt_cr, dt_ct = estimate_dt(cr), estimate_dt(ct)
+    for name in CASES:
+        crisis, control = load_method_case(
+            name
+        )
+
+        dt = case_dt(
+            name
+        )
 
         methods = {
-            'Π (ρ×Ψ×Ω)': (compute_pi(cr, dt_cr), compute_pi(ct, dt_ct)),
-            'CSD Variance': (compute_csd_variance(cr), compute_csd_variance(ct)),
-            'CSD AC(1)': (compute_csd_autocorr(cr), compute_csd_autocorr(ct)),
-            'PCA-PC1': (compute_pca_stress(cr, dt_cr), compute_pca_stress(ct, dt_ct)),
-            'Additive': (compute_additive(cr, dt_cr), compute_additive(ct, dt_ct)),
-            'Max': (compute_max_channel(cr, dt_cr), compute_max_channel(ct, dt_ct)),
+            "Π (ρ×Ψ×Ω)": (
+                compute_pi(
+                    crisis,
+                    dt,
+                ),
+                compute_pi(
+                    control,
+                    dt,
+                ),
+            ),
+            "CSD Variance": (
+                compute_csd_variance(
+                    crisis
+                ),
+                compute_csd_variance(
+                    control
+                ),
+            ),
+            "CSD AC(1)": (
+                compute_csd_autocorr(
+                    crisis
+                ),
+                compute_csd_autocorr(
+                    control
+                ),
+            ),
+            "PCA-PC1": (
+                compute_pca_stress(
+                    crisis,
+                    dt,
+                ),
+                compute_pca_stress(
+                    control,
+                    dt,
+                ),
+            ),
+            "Additive": (
+                compute_additive(
+                    crisis,
+                    dt,
+                ),
+                compute_additive(
+                    control,
+                    dt,
+                ),
+            ),
+            "Max": (
+                compute_max_channel(
+                    crisis,
+                    dt,
+                ),
+                compute_max_channel(
+                    control,
+                    dt,
+                ),
+            ),
         }
 
-        for method, (val_cr, val_ct) in methods.items():
-            sep = val_cr / val_ct if abs(val_ct) > 1e-15 else float('inf')
-            results.append({'Case': name, 'Method': method, 'Crisis': val_cr,
-                            'Control': val_ct, 'Sep': sep})
+        case_ratios = {}
 
-        best_method = max(methods, key=lambda m: methods[m][0] / methods[m][1]
-                          if abs(methods[m][1]) > 1e-15 else -1)
-        print(f"\n  {name}: best = {best_method}")
-        for method, (val_cr, val_ct) in methods.items():
-            sep = val_cr / val_ct if abs(val_ct) > 1e-15 else float('inf')
-            tag = " ◀" if method == best_method else ""
-            print(f"    {method:18s}: {sep:>10.1f}×{tag}")
+        for method, (
+            crisis_value,
+            control_value,
+        ) in methods.items():
+            ratio = finite_nonzero_ratio(
+                crisis_value,
+                control_value,
+                f"{name}/{method}",
+            )
 
-    df = pd.DataFrame(results)
-    pivot = df.pivot(index='Method', columns='Case', values='Sep')
-    pivot = pivot[['2008 Financial', 'Terra-Luna', 'Fukushima', 'COVID-19', 'Supply Chain']]
-    pivot.round(1).to_csv(f"{OUTPUT_DIR}/table_ST16_method_comparison.csv")
-    print(f"\n  → Saved: {OUTPUT_DIR}/table_ST16_method_comparison.csv")
+            case_ratios[
+                method
+            ] = ratio
 
-    # Win count
+            results.append({
+                "Case": name,
+                "Method": method,
+                "Crisis": float(
+                    crisis_value
+                ),
+                "Control": float(
+                    control_value
+                ),
+                "Sep": float(
+                    ratio
+                ),
+            })
+
+        largest_ratio_method = max(
+            case_ratios,
+            key=case_ratios.get,
+        )
+
+        print(
+            f"\n  {name}: largest crisis/control ratio = "
+            f"{largest_ratio_method}"
+        )
+
+        for method in methods:
+            ratio = case_ratios[
+                method
+            ]
+
+            tag = (
+                " ◀"
+                if method == largest_ratio_method
+                else ""
+            )
+
+            print(
+                f"    {method:18s}: "
+                f"{ratio:>10.1f}×{tag}"
+            )
+
+    expected_rows = (
+        len(CASES) * 6
+    )
+
+    if len(results) != expected_rows:
+        raise RuntimeError(
+            f"Expected {expected_rows} ST16 rows, "
+            f"got {len(results)}."
+        )
+
+    df = pd.DataFrame(
+        results
+    )
+
+    numeric = df[
+        [
+            "Crisis",
+            "Control",
+            "Sep",
+        ]
+    ].to_numpy(dtype=float)
+
+    if not np.isfinite(
+        numeric
+    ).all():
+        raise ValueError(
+            "ST16 method-comparison results contain "
+            "non-finite values."
+        )
+
+    pivot = df.pivot(
+        index="Method",
+        columns="Case",
+        values="Sep",
+    )
+
+    expected_cases = list(
+        CASES.keys()
+    )
+
+    missing_cases = (
+        set(expected_cases)
+        - set(pivot.columns)
+    )
+
+    if missing_cases:
+        raise RuntimeError(
+            f"ST16 missing case columns: "
+            f"{sorted(missing_cases)}."
+        )
+
+    pivot = pivot[
+        expected_cases
+    ]
+
+    output_path = os.path.join(
+        OUTPUT_DIR,
+        "table_ST16_method_comparison.csv",
+    )
+
+    pivot.round(1).to_csv(
+        output_path
+    )
+
+    if (
+        not os.path.exists(output_path)
+        or os.path.getsize(output_path) <= 0
+    ):
+        raise RuntimeError(
+            "ST16 output was not created."
+        )
+
+    print(
+        f"\n  → Saved: {output_path}"
+    )
+
     wins = {}
+
     for case in pivot.columns:
-        w = pivot[case].idxmax()
-        wins[w] = wins.get(w, 0) + 1
-    print(f"\n  Win count: {wins}")
+        method = pivot[
+            case
+        ].idxmax()
+
+        wins[method] = (
+            wins.get(
+                method,
+                0,
+            )
+            + 1
+        )
+
+    print(
+        f"\n  Largest-ratio count: {wins}"
+    )
 
     return pivot
-
-
-# ═══════════════════════════════════════════════════════════════
-# Legacy audit: retrospective rolling-trajectory analysis
-# ═══════════════════════════════════════════════════════════════
 
 def run_retrospective_trajectory():
     print("\n" + "=" * 80)

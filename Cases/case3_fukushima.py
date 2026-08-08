@@ -43,26 +43,150 @@ MIN_MAG = 2.0  # M2+ for baseline coverage
 
 class PiCalc:
     def __init__(self):
-        self.dt = 1.0/DPY; self.p = {}
-    def calibrate(self, r, p, o):
-        rs = r[STABLE_START:STABLE_END].dropna()
-        ps = p[STABLE_START:STABLE_END].dropna()
-        os_ = o[STABLE_START:STABLE_END].dropna()
-        self.p = {k: max(np.percentile(v, PLIMIT_PCT), 1e-10)
-                  for k,v in zip(['r','p','o'],[rs,ps,os_])}
-        print(f"  P_limits: rho={self.p['r']:.4f}, psi={self.p['p']:.6f}, omega={self.p['o']:.6f}")
-        return self.p
-    def calc(self, r, p, o, s=None, e=None):
-        if s: r,p,o = r[s:],p[s:],o[s:]
-        if e: r,p,o = r[:e],p[:e],o[:e]
-        idx = r.index.intersection(p.index).intersection(o.index)
-        r,p,o = r.reindex(idx),p.reindex(idx),o.reindex(idx)
-        rn=(r/self.p['r']).clip(0); pn=(p/self.p['p']).clip(0); on=(o/self.p['o']).clip(0)
-        st = rn*pn*on; pi = (st*self.dt).cumsum()
-        return pd.DataFrame({'rho':r,'psi':p,'omega':o,
-            'rho_norm':rn,'psi_norm':pn,'omega_norm':on,
-            'stress':st,'pi':pi}, index=idx)
+        if not np.isfinite(DPY) or DPY <= 0:
+            raise ValueError("DPY must be positive and finite.")
+        self.dt = 1.0 / float(DPY)
+        self.p = {}
+        self.ok = False
 
+    def calibrate(self, r, p, o):
+        stable = {
+            "r": r[STABLE_START:STABLE_END].dropna(),
+            "p": p[STABLE_START:STABLE_END].dropna(),
+            "o": o[STABLE_START:STABLE_END].dropna(),
+        }
+
+        for name, series in stable.items():
+            if series.empty:
+                raise ValueError(
+                    f"{name}: no observations in Fukushima calibration period."
+                )
+
+            values = series.to_numpy(dtype=float)
+
+            if not np.isfinite(values).all():
+                raise ValueError(
+                    f"{name}: calibration data contain non-finite values."
+                )
+            if (values < 0).any():
+                raise ValueError(
+                    f"{name}: calibration data must be non-negative."
+                )
+
+        limits = {
+            name: float(
+                np.percentile(
+                    series.to_numpy(dtype=float),
+                    PLIMIT_PCT,
+                )
+            )
+            for name, series in stable.items()
+        }
+
+        for name, value in limits.items():
+            if not np.isfinite(value) or value <= 0:
+                raise ValueError(
+                    f"{name}: P_limit must be positive and finite; "
+                    f"got {value}."
+                )
+
+        self.p = limits
+        self.ok = True
+
+        print(
+            f"  P_limits: rho={self.p['r']:.4f}, "
+            f"psi={self.p['p']:.6f}, "
+            f"omega={self.p['o']:.6f}"
+        )
+        return self.p
+
+    def calc(self, r, p, o, s=None, e=None):
+        if not self.ok:
+            raise RuntimeError("calibrate() must be called before calc().")
+
+        if s:
+            r, p, o = r[s:], p[s:], o[s:]
+        if e:
+            r, p, o = r[:e], p[:e], o[:e]
+
+        idx = (
+            r.index
+            .intersection(p.index)
+            .intersection(o.index)
+            .sort_values()
+        )
+
+        if len(idx) == 0:
+            raise ValueError("No common Fukushima observations.")
+        if idx.has_duplicates:
+            raise ValueError(
+                "Fukushima analysis index contains duplicate dates."
+            )
+
+        r = r.reindex(idx)
+        p = p.reindex(idx)
+        o = o.reindex(idx)
+
+        for name, series in {
+            "rho": r,
+            "psi": p,
+            "omega": o,
+        }.items():
+            values = series.to_numpy(dtype=float)
+            if not np.isfinite(values).all():
+                raise ValueError(
+                    f"{name}: analysis data contain non-finite values."
+                )
+            if (values < 0).any():
+                raise ValueError(
+                    f"{name}: analysis data must be non-negative."
+                )
+
+        rn = r / self.p["r"]
+        pn = p / self.p["p"]
+        on = o / self.p["o"]
+
+        for name, series in {
+            "rho_norm": rn,
+            "psi_norm": pn,
+            "omega_norm": on,
+        }.items():
+            values = series.to_numpy(dtype=float)
+            if not np.isfinite(values).all():
+                raise ValueError(
+                    f"{name}: normalized data contain non-finite values."
+                )
+            if (values < 0).any():
+                raise ValueError(
+                    f"{name}: normalized data must be non-negative."
+                )
+
+        stress = rn * pn * on
+        values = stress.to_numpy(dtype=float)
+
+        if not np.isfinite(values).all():
+            raise ValueError("Fukushima stress contains non-finite values.")
+        if (values < 0).any():
+            raise ValueError("Fukushima stress must be non-negative.")
+
+        pi = (stress * self.dt).cumsum()
+
+        if not np.isfinite(pi.to_numpy(dtype=float)).all():
+            raise ValueError("Fukushima Pi contains non-finite values.")
+
+        return pd.DataFrame(
+            {
+                "rho": r,
+                "psi": p,
+                "omega": o,
+                "rho_norm": rn,
+                "psi_norm": pn,
+                "omega_norm": on,
+                "stress": stress,
+                "pi": pi,
+            },
+            index=idx,
+        )
 
 def mag_to_energy(mag):
     """Gutenberg-Richter: log10(E) = 1.5*M + 4.8 (Joules)"""
@@ -70,190 +194,427 @@ def mag_to_energy(mag):
 
 
 def fetch_usgs_earthquakes():
-    """USGS FDSN Event API → Japan region earthquakes"""
+    """
+    Fetch the complete M2+ USGS catalog for the declared Japan bounding box.
+
+    Every monthly query is checked against the USGS count endpoint.
+    Missing-event days are genuine zero-event days after a complete catalog
+    has been verified; they are not forward-filled from earlier earthquakes.
+    """
     print("\n[1/3] rho: USGS Earthquake Data (Japan, M2+)")
     print("-" * 50)
 
-    all_data = []
-    start = pd.Timestamp(DATA_START)
-    end = pd.Timestamp(DATA_END)
-    current = start
+    query_url = "https://earthquake.usgs.gov/fdsnws/event/1/query"
+    count_url = "https://earthquake.usgs.gov/fdsnws/event/1/count"
 
-    while current < end:
-        month_end = min(current + pd.DateOffset(months=1), end)
-        url = (
-            f"https://earthquake.usgs.gov/fdsnws/event/1/query?"
-            f"format=csv"
-            f"&starttime={current.strftime('%Y-%m-%d')}"
-            f"&endtime={month_end.strftime('%Y-%m-%d')}"
-            f"&minlatitude={JP_LAT_MIN}&maxlatitude={JP_LAT_MAX}"
-            f"&minlongitude={JP_LON_MIN}&maxlongitude={JP_LON_MAX}"
-            f"&minmagnitude={MIN_MAG}"
-            f"&orderby=time"
-        )
+    chunks = []
+
+    current = pd.Timestamp(DATA_START)
+    data_end_exclusive = pd.Timestamp(DATA_END) + pd.Timedelta(days=1)
+
+    while current < data_end_exclusive:
+        next_month = current + pd.DateOffset(months=1)
+        chunk_end_exclusive = min(next_month, data_end_exclusive)
+        chunk_end = chunk_end_exclusive - pd.Timedelta(microseconds=1)
+
+        base_params = {
+            "starttime": current.isoformat(),
+            "endtime": chunk_end.isoformat(),
+            "minlatitude": JP_LAT_MIN,
+            "maxlatitude": JP_LAT_MAX,
+            "minlongitude": JP_LON_MIN,
+            "maxlongitude": JP_LON_MAX,
+            "minmagnitude": MIN_MAG,
+        }
+
+        label = current.strftime("%Y-%m")
+        print(f"  {label}...", end=" ")
+
         try:
-            print(f"  {current.strftime('%Y-%m')}...", end=" ")
-            resp = requests.get(url, timeout=60)
-            if resp.status_code == 200 and len(resp.text) > 100:
-                df = pd.read_csv(io.StringIO(resp.text))
-                if len(df) > 0:
-                    all_data.append(df)
-                    print(f"ok {len(df)} events")
-                else:
-                    print("0 events")
-            else:
-                print(f"HTTP {resp.status_code}")
-        except Exception as e:
-            print(f"err: {e}")
-        time.sleep(1)
-        current = month_end
+            count_response = requests.get(
+                count_url,
+                params=base_params,
+                timeout=60,
+            )
+            count_response.raise_for_status()
+        except requests.RequestException as exc:
+            raise RuntimeError(
+                f"USGS count request failed for {label}: {exc}"
+            ) from exc
 
-    if not all_data:
-        print("  USGS FAIL"); return None
+        try:
+            expected_count = int(count_response.text.strip())
+        except ValueError as exc:
+            raise RuntimeError(
+                f"USGS count response was not an integer for {label}: "
+                f"{count_response.text!r}"
+            ) from exc
 
-    eq = pd.concat(all_data, ignore_index=True)
-    # UTC time → date (normalize to midnight, tz-naive)
-    eq['datetime'] = pd.to_datetime(eq['time'], utc=True)
-    eq['date'] = eq['datetime'].dt.tz_localize(None).dt.normalize()
-    eq['energy'] = mag_to_energy(eq['mag'])
+        if expected_count < 0:
+            raise RuntimeError(
+                f"USGS returned invalid negative count for {label}."
+            )
 
-    print(f"\n  Total: {len(eq)} earthquakes (M{MIN_MAG}+)")
+        # Official USGS query service maximum.
+        if expected_count > 20000:
+            raise RuntimeError(
+                f"USGS monthly chunk {label} contains {expected_count} "
+                "events, exceeding the 20,000-event query limit. "
+                "Use smaller deterministic chunks."
+            )
+
+        if expected_count == 0:
+            print("ok 0 events")
+            current = chunk_end_exclusive
+            continue
+
+        query_params = dict(base_params)
+        query_params.update(
+            {
+                "format": "csv",
+                "orderby": "time-asc",
+                "limit": 20000,
+            }
+        )
+
+        try:
+            response = requests.get(
+                query_url,
+                params=query_params,
+                timeout=60,
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            raise RuntimeError(
+                f"USGS event request failed for {label}: {exc}"
+            ) from exc
+
+        try:
+            frame = pd.read_csv(io.StringIO(response.text))
+        except (pd.errors.ParserError, UnicodeDecodeError) as exc:
+            raise RuntimeError(
+                f"USGS CSV parsing failed for {label}."
+            ) from exc
+
+        required = {"id", "time", "mag"}
+        if not required.issubset(frame.columns):
+            raise RuntimeError(
+                f"USGS response for {label} is missing columns: "
+                f"{sorted(required - set(frame.columns))}"
+            )
+
+        if len(frame) != expected_count:
+            raise RuntimeError(
+                f"USGS completeness failure for {label}: "
+                f"count endpoint={expected_count}, CSV rows={len(frame)}."
+            )
+
+        print(f"ok {len(frame)} events")
+        chunks.append(frame)
+
+        current = chunk_end_exclusive
+
+    if not chunks:
+        raise RuntimeError(
+            "USGS returned no M2+ earthquake observations "
+            "for the full Fukushima data period."
+        )
+
+    eq = pd.concat(chunks, ignore_index=True)
+
+    if eq["id"].isna().any():
+        raise RuntimeError("USGS catalog contains missing event IDs.")
+
+    duplicate_ids = int(eq["id"].duplicated().sum())
+    if duplicate_ids:
+        raise RuntimeError(
+            f"USGS catalog contains {duplicate_ids} duplicate event IDs."
+        )
+
+    eq["datetime"] = pd.to_datetime(
+        eq["time"],
+        utc=True,
+        errors="coerce",
+    )
+    eq["mag"] = pd.to_numeric(eq["mag"], errors="coerce")
+
+    if eq["datetime"].isna().any():
+        raise RuntimeError("USGS catalog contains invalid event timestamps.")
+    if eq["mag"].isna().any():
+        raise RuntimeError("USGS catalog contains invalid magnitudes.")
+
+    magnitudes = eq["mag"].to_numpy(dtype=float)
+
+    if not np.isfinite(magnitudes).all():
+        raise RuntimeError("USGS magnitudes contain non-finite values.")
+    if (magnitudes < MIN_MAG).any():
+        raise RuntimeError(
+            "USGS response contains an event below MIN_MAG."
+        )
+
+    eq["date"] = (
+        eq["datetime"]
+        .dt.tz_localize(None)
+        .dt.normalize()
+    )
+    eq["energy"] = mag_to_energy(eq["mag"])
+
+    energy_values = eq["energy"].to_numpy(dtype=float)
+    if not np.isfinite(energy_values).all():
+        raise RuntimeError(
+            "Calculated earthquake energies contain non-finite values."
+        )
+    if (energy_values <= 0).any():
+        raise RuntimeError(
+            "Calculated earthquake energies must be positive."
+        )
+
+    daily_total_energy = eq.groupby("date")["energy"].sum()
+    daily_max_mag = eq.groupby("date")["mag"].max()
+    daily_count = eq.groupby("date")["mag"].count()
+
+    # Complete calendar-day definition:
+    # no catalogued M2+ event in the verified region/day means zero energy.
+    calendar = pd.date_range(
+        pd.Timestamp(DATA_START),
+        pd.Timestamp(DATA_END),
+        freq="D",
+    )
+
+    daily_total_energy = daily_total_energy.reindex(
+        calendar,
+        fill_value=0.0,
+    )
+
+    # Preserve the original positive-event transformation exactly:
+    # log10(E) on earthquake days. A verified zero-event calendar day
+    # is assigned E=0 and maps to log10(1)=0.
+    rho_raw = np.log10(daily_total_energy.clip(lower=1.0))
+    rho_raw.name = "rho"
+
+    rho_values = rho_raw.to_numpy(dtype=float)
+
+    if not np.isfinite(rho_values).all():
+        raise RuntimeError("Fukushima rho contains non-finite values.")
+    if (rho_values < 0).any():
+        raise RuntimeError("Fukushima rho must be non-negative.")
+
+    print(
+        f"\n  Total: {len(eq)} unique earthquakes "
+        f"(M{MIN_MAG}+)"
+    )
     print(f"  Max magnitude: M{eq['mag'].max():.1f}")
 
-    # 일별 총 에너지 (log10 scale)
-    daily_total_energy = eq.groupby('date')['energy'].sum()
-    daily_max_mag = eq.groupby('date')['mag'].max()
-    daily_count = eq.groupby('date')['mag'].count()
+    event_date = pd.Timestamp(COLLAPSE_DATE)
+    if event_date not in daily_max_mag.index:
+        raise RuntimeError(
+            f"No USGS earthquake found on collapse date {COLLAPSE_DATE}."
+        )
 
-    # log10(총 에너지) → 안정기에도 값이 있음
-    rho_raw = np.log10(daily_total_energy.clip(lower=1))
+    d311 = float(daily_total_energy.loc[event_date])
+    m311 = float(daily_max_mag.loc[event_date])
+    c311 = int(daily_count.loc[event_date])
 
-    # 3/11 확인
-    if '2011-03-11' in str(daily_max_mag.index):
-        d311 = daily_total_energy.get(pd.Timestamp('2011-03-11'), 0)
-        m311 = daily_max_mag.get(pd.Timestamp('2011-03-11'), 0)
-        c311 = daily_count.get(pd.Timestamp('2011-03-11'), 0)
-        print(f"  3/11: M{m311:.1f}, {c311} events, total E={d311:.2e} J, log10={np.log10(d311):.2f}")
+    print(
+        f"  3/11: M{m311:.1f}, {c311} events, "
+        f"total E={d311:.2e} J, "
+        f"log10(E)={np.log10(d311):.2f}"
+    )
 
-    # 안정기 통계
     stable_rho = rho_raw[STABLE_START:STABLE_END]
-    print(f"  Stable period: {len(stable_rho)} days with data, "
-          f"log10(E) range: {stable_rho.min():.1f} ~ {stable_rho.max():.1f}")
 
-    print(f"  rho (log10 daily energy): {len(rho_raw)} days with quakes")
+    if stable_rho.empty:
+        raise RuntimeError("Fukushima stable rho period is empty.")
+
+    print(
+        f"  Stable period: {len(stable_rho)} calendar days, "
+        f"log10(E_or_1) range: "
+        f"{stable_rho.min():.1f} ~ {stable_rho.max():.1f}"
+    )
+    print(
+        f"  rho (log10(max(daily M2+ energy, 1))): "
+        f"{len(rho_raw)} calendar days"
+    )
+
     return rho_raw
 
-
 def fetch_nikkei_jpy():
-    """Yahoo Finance → Nikkei 225 + USD/JPY"""
+    """Yahoo Finance -> Nikkei 225 + USD/JPY."""
     print("\n[2/3] psi: Nikkei 225 Volatility")
     print("[3/3] omega: USD/JPY Rate Change")
     print("-" * 50)
+
     import yfinance as yf
 
-    # Nikkei 225
     print("  ^N225...", end=" ")
-    nk = yf.download('^N225', start=DATA_START, end=DATA_END, progress=False)
-    if nk is None or len(nk) == 0:
-        print("FAIL"); return None, None
+    nk = yf.download(
+        "^N225",
+        start=DATA_START,
+        end=DATA_END,
+        progress=False,
+        auto_adjust=False,
+    )
+
+    if nk.empty:
+        raise RuntimeError("^N225 retrieval returned no data.")
     if isinstance(nk.columns, pd.MultiIndex):
         nk.columns = nk.columns.get_level_values(0)
-    nk.index = pd.to_datetime(nk.index).tz_localize(None).normalize()
+    if "Close" not in nk.columns:
+        raise RuntimeError("^N225 response has no Close column.")
+
+    nk.index = (
+        pd.to_datetime(nk.index)
+        .tz_localize(None)
+        .normalize()
+    )
+    nk = nk[~nk.index.duplicated(keep="last")].sort_index()
+    nk_close = pd.to_numeric(nk["Close"], errors="coerce")
+
+    if nk_close.dropna().empty:
+        raise RuntimeError("^N225 has no numeric Close observations.")
+
     print(f"ok {len(nk)} rows")
 
-    nk_ret = nk['Close'].pct_change()
+    nk_ret = nk_close.pct_change(fill_method=None)
     psi = nk_ret.rolling(5).std() * np.sqrt(252)
 
-    nk_crisis = nk['Close']['2011-03-10':'2011-03-18']
+    nk_crisis = nk_close["2011-03-10":"2011-03-18"].dropna()
     if len(nk_crisis) >= 2:
-        drop = (nk_crisis.iloc[-1] / nk_crisis.iloc[0] - 1) * 100
+        drop = (
+            nk_crisis.iloc[-1] / nk_crisis.iloc[0] - 1
+        ) * 100
         print(f"  Nikkei 3/10~3/18: {drop:.1f}% change")
 
-    # USD/JPY
     print("  JPY=X...", end=" ")
-    jpy = yf.download('JPY=X', start=DATA_START, end=DATA_END, progress=False)
-    if jpy is None or len(jpy) == 0:
-        print("FAIL"); return None, None
+    jpy = yf.download(
+        "JPY=X",
+        start=DATA_START,
+        end=DATA_END,
+        progress=False,
+        auto_adjust=False,
+    )
+
+    if jpy.empty:
+        raise RuntimeError("JPY=X retrieval returned no data.")
     if isinstance(jpy.columns, pd.MultiIndex):
         jpy.columns = jpy.columns.get_level_values(0)
-    jpy.index = pd.to_datetime(jpy.index).tz_localize(None).normalize()
+    if "Close" not in jpy.columns:
+        raise RuntimeError("JPY=X response has no Close column.")
+
+    jpy.index = (
+        pd.to_datetime(jpy.index)
+        .tz_localize(None)
+        .normalize()
+    )
+    jpy = jpy[~jpy.index.duplicated(keep="last")].sort_index()
+    jpy_close = pd.to_numeric(jpy["Close"], errors="coerce")
+
+    if jpy_close.dropna().empty:
+        raise RuntimeError("JPY=X has no numeric Close observations.")
+
     print(f"ok {len(jpy)} rows")
 
-    omega = jpy['Close'].pct_change().abs()
+    omega = jpy_close.pct_change(fill_method=None).abs()
 
-    jpy_crisis = jpy['Close']['2011-03-10':'2011-03-18']
+    jpy_crisis = jpy_close["2011-03-10":"2011-03-18"].dropna()
     if len(jpy_crisis) >= 2:
-        print(f"  USD/JPY 3/10: {jpy_crisis.iloc[0]:.2f} -> min: {jpy_crisis.min():.2f}")
+        print(
+            f"  USD/JPY 3/10: {jpy_crisis.iloc[0]:.2f} "
+            f"-> min: {jpy_crisis.min():.2f}"
+        )
 
     print(f"  psi (Nikkei vol): {psi.dropna().shape[0]} pts")
-    print(f"  omega (JPY change): {omega.dropna().shape[0]} pts")
-    return psi, omega
+    print(
+        f"  omega (JPY change): "
+        f"{omega.dropna().shape[0]} pts"
+    )
 
+    return psi, omega
 
 def fetch():
     print("=" * 60)
-    print("  Fukushima v2: rho=Quake(USGS) | psi=Nikkei | omega=JPY")
+    print(
+        "  Fukushima v2: "
+        "rho=Quake(USGS) | psi=Nikkei | omega=JPY"
+    )
     print("=" * 60)
 
     rho = fetch_usgs_earthquakes()
-    if rho is None: return None
-
     psi, omega = fetch_nikkei_jpy()
-    if psi is None: return None
 
-    # Align: rho(calendar) → trading days
     print("\n[Align]")
 
-    # psi와 omega의 공통 trading days
-    trading_days = psi.dropna().index.intersection(omega.dropna().index)
+    trading_days = (
+        psi.dropna()
+        .index.intersection(omega.dropna().index)
+        .sort_values()
+    )
+
+    if len(trading_days) == 0:
+        raise ValueError(
+            "No common Nikkei/JPY trading observations."
+        )
+    if trading_days.has_duplicates:
+        raise ValueError("Trading-day index contains duplicates.")
+
     print(f"  Trading days: {len(trading_days)}")
 
-    # rho를 trading days에 매핑
-    # rho의 인덱스를 tz-naive normalized로 통일
     rho.index = pd.to_datetime(rho.index).normalize()
 
-    # 디버그: 겹치는 날짜 확인
-    overlap = rho.index.intersection(trading_days)
-    print(f"  Overlap (rho & trading): {len(overlap)}")
-
-    if len(overlap) < 10:
-        # 날짜 타입 문제일 수 있음 - 직접 매핑
-        print("  Direct mapping fallback...")
-        rho_dict = {d: v for d, v in zip(rho.index, rho.values)}
-        rho_mapped = []
-        for td in trading_days:
-            # 정확히 같은 날 또는 직전 날
-            val = rho_dict.get(td, None)
-            if val is None:
-                # 이전 날짜에서 가장 가까운 값
-                for delta in range(0, 4):
-                    check = td - pd.Timedelta(days=delta)
-                    val = rho_dict.get(check, None)
-                    if val is not None:
-                        break
-            rho_mapped.append(val if val is not None else 0)
-        rho_aligned = pd.Series(rho_mapped, index=trading_days)
-    else:
-        rho_aligned = rho.reindex(trading_days, method='ffill').fillna(0)
-
+    # rho is now defined on every calendar date, so trading-day
+    # alignment is an exact-date selection, not state carry-forward.
+    rho_aligned = rho.reindex(trading_days)
     psi_aligned = psi.reindex(trading_days)
     omega_aligned = omega.reindex(trading_days)
 
-    # 디버그: 3/11 근처 값 확인
-    for d in ['2011-03-10', '2011-03-11', '2011-03-14', '2011-03-15']:
+    for name, series in {
+        "rho": rho_aligned,
+        "psi": psi_aligned,
+        "omega": omega_aligned,
+    }.items():
+        if series.isna().any():
+            missing = series.index[series.isna()]
+            raise ValueError(
+                f"{name}: {len(missing)} missing aligned observations; "
+                f"first={missing[0].date()}."
+            )
+
+        values = series.to_numpy(dtype=float)
+
+        if not np.isfinite(values).all():
+            raise ValueError(
+                f"{name}: aligned data contain non-finite values."
+            )
+        if (values < 0).any():
+            raise ValueError(
+                f"{name}: aligned data must be non-negative."
+            )
+
+    for d in [
+        "2011-03-10",
+        "2011-03-11",
+        "2011-03-14",
+        "2011-03-15",
+    ]:
         ts = pd.Timestamp(d)
         if ts in rho_aligned.index:
-            print(f"  {d}: rho={rho_aligned.loc[ts]:.2f}, "
-                  f"psi={psi_aligned.loc[ts]:.4f}, "
-                  f"omega={omega_aligned.loc[ts]:.6f}")
+            print(
+                f"  {d}: "
+                f"rho={rho_aligned.loc[ts]:.2f}, "
+                f"psi={psi_aligned.loc[ts]:.4f}, "
+                f"omega={omega_aligned.loc[ts]:.6f}"
+            )
 
-    v = rho_aligned.notna() & psi_aligned.notna() & omega_aligned.notna()
-    f = trading_days[v]
-    print(f"  Final: {len(f)} pts, rho>0: {(rho_aligned.reindex(f) > 0).sum()}")
-    return {'rho': rho_aligned.reindex(f),
-            'psi': psi_aligned.reindex(f),
-            'omega': omega_aligned.reindex(f)}
+    print(
+        f"  Final: {len(trading_days)} pts, "
+        f"rho>0: {(rho_aligned > 0).sum()}"
+    )
 
+    return {
+        "rho": rho_aligned,
+        "psi": psi_aligned,
+        "omega": omega_aligned,
+    }
 
 def plot_traj(res, title, cd, path=None):
     plt.rcParams.update({'figure.dpi':150,'font.family':'serif','font.size':11,
@@ -313,7 +674,6 @@ def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     d = fetch()
-    if not d: print("FAIL"); sys.exit(1)
 
     c = PiCalc()
     c.calibrate(d['rho'], d['psi'], d['omega'])
@@ -333,14 +693,30 @@ def main():
               f"{OUTPUT_DIR}/fig2_fukushima_vs_control.png")
 
     cd = pd.Timestamp(COLLAPSE_DATE)
-    n = cr.index[cr.index.get_indexer([cd], method='nearest')]
-    pc = cr.loc[n[0], 'pi']; cf = ct['pi'].iloc[-1]
-    s = pc/cf if cf > 0 else float('inf')
+    loc = cr.index.get_indexer([cd], method="nearest")
+
+    if loc[0] < 0:
+        raise ValueError(
+            "No Fukushima crisis observation near collapse date."
+        )
+
+    collapse_obs = cr.index[loc[0]]
+    pc = float(cr.loc[collapse_obs, "pi"])
+    cf = float(ct["pi"].iloc[-1])
+
+    if not np.isfinite(pc):
+        raise ValueError("Fukushima collapse Pi must be finite.")
+    if not np.isfinite(cf) or cf <= 0:
+        raise ValueError(
+            "Fukushima control Pi must be positive and finite."
+        )
+
+    separation = pc / cf
 
     print(f"\n{'='*60}")
     print(f"  Pi@collapse: {pc:.6f}")
     print(f"  Control:     {cf:.6f}")
-    print(f"  Separation:  {s:.1f}x")
+    print(f"  Separation:  {separation:.1f}x")
     print(f"{'='*60}")
 
 
