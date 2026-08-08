@@ -1413,6 +1413,7 @@ def run_plimit_sensitivity():
             "table_S1_plimit_sensitivity.csv",
         ),
         index=False,
+        float_format="%.12g",
     )
 
     print(
@@ -2068,7 +2069,11 @@ def main():
 
     # ── Save CSV outputs (before figures, which read these files) ──
     df1 = pd.DataFrame(r1)
-    df1.to_csv(os.path.join(OUT_DIR, 'table1_cross_domain.csv'), index=False)
+    df1.to_csv(
+        os.path.join(OUT_DIR, 'table1_cross_domain.csv'),
+        index=False,
+        float_format="%.12g",
+    )
 
     rows2 = []
     for r in r2:
