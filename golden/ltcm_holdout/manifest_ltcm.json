@@ -1,0 +1,56 @@
+{
+  "addendum_commit": "3448f2e",
+  "addendum_sha256": "d49d97b889eed4d8b760081718ba3be61d16be7fb8bbaaf94bfbe245d0280095",
+  "analysis_code_commit": "b2e1653a95f38556757b8b5d733a2fc1b592da34",
+  "artifact_sha256": {
+    "data/ltcm_holdout/ltcm_historical_holdout_processed.csv": "cbdaaeac96612bd4006f920168208d8551e4bc98cb288afaa0c4bb8a9355370e",
+    "data/ltcm_holdout/raw_DFF.csv": "a41e5426bcba423eac6ac64dfe74b1c55e12a17c537f602be13224f7b188fb4d",
+    "data/ltcm_holdout/raw_TEDRATE.csv": "466c908d27638c4883ae4e79e28bb114ab807504de7cb5de485a6aeaf77abd29",
+    "data/ltcm_holdout/raw_TOTBKCR.csv": "23881fd5ddd63accbd0973dac8478a6ae7aa78aaaf02e175085f327af1853493",
+    "output/ltcm_holdout/table_ltcm_ablation.csv": "234b0f9e175a9707ebcfa9fff9491b55ee5495a2ceb17f2a0f46e59a496ea919",
+    "output/ltcm_holdout/table_ltcm_correlations.csv": "a54ba7a7e3118bdb64ce0852a66872d5b08672db3135b93343d5e7739ddb02bb",
+    "output/ltcm_holdout/table_ltcm_formulations.csv": "0652b7fc36c07f38159eaaba049c1999fff1071c0f3d098ce5921517500ff3d8",
+    "output/ltcm_holdout/table_ltcm_permutation.csv": "cf4ced3ba2f18dcb5f25e92e0bc44c6f9e6a568170467f40a04b1770f52058fb",
+    "output/ltcm_holdout/table_ltcm_primary.csv": "e5b25819a41934961fd80289421314c3c029afe3b6fd4403f94f5eac9826f74b"
+  },
+  "block_sizes": [
+    5,
+    10,
+    20
+  ],
+  "calibration": [
+    "1995-01-09",
+    "1997-07-07"
+  ],
+  "case": "LTCM 1998",
+  "control": [
+    "1994-01-08",
+    "1996-07-07"
+  ],
+  "data_end": "1999-07-08",
+  "data_start": "1994-01-08",
+  "delta_observations": 5,
+  "fred_vintage_date": "2026-09-09",
+  "n_permutations": 10000,
+  "p_limits": {
+    "omega": 3754.7231217142853,
+    "psi": 0.22,
+    "rho": 1.3197999999999943
+  },
+  "percentile": 99,
+  "post_control_end": "1999-04-08",
+  "protocol_commit": "a179608",
+  "protocol_sha256": "1a843d8cae550da2019c2bb8f39c38a5c7be11c5d8d75aa432cd5a3d33701f8d",
+  "reference_date": "1998-09-23",
+  "seeds": {
+    "10": 20261233,
+    "20": 20261234,
+    "5": 20261232,
+    "independent": 20261231
+  },
+  "series": {
+    "omega": "TOTBKCR",
+    "psi": "TEDRATE",
+    "rho": "DFF"
+  }
+}

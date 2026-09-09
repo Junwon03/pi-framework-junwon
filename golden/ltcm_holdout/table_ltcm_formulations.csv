@@ -1,0 +1,4 @@
+Definition,N_post_control,N_control,Mean_post_control,Mean_control,Post_control_to_control_mean_ratio,Rank_within_case
+Multiplicative,642,576,0.052961164,0.0461765788,1.1469269769,2
+Additive,642,576,1.4715809623,1.3178065459,1.1166896742,3
+Maximum,642,576,1.0413738848,0.888872967,1.1715666058,1

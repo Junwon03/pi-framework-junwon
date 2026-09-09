@@ -1,0 +1,2 @@
+Case,Domain,Reference_date,Control_start,Control_end,Post_control_start,Post_control_end,N_control,N_post_control,N_exact_overlap,Mean_stress_control,Mean_stress_post_control,Post_control_to_control_mean_ratio
+LTCM 1998,Traditional Finance,1998-09-23,1994-01-18,1996-07-05,1996-07-08,1999-04-08,576,642,0,0.0461765788,0.052961164,1.1469269769
