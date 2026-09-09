@@ -286,7 +286,7 @@ def main() -> int:
         "delta_observations": DELTA,
         "percentile": PERCENTILE,
         "p_limits": {k: float(v) for k, v in p_limits.items()},
-        "seeds": SEEDS,
+        "seeds": {str(k): int(v) for k, v in SEEDS.items()},
         "block_sizes": list(BLOCK_SIZES),
         "n_permutations": N_PERMUTATIONS,
         "protocol_commit": PROTOCOL_COMMIT,
