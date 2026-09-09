@@ -1,7 +1,9 @@
 {
-  "addendum_commit": "3448f2e",
-  "addendum_sha256": "d49d97b889eed4d8b760081718ba3be61d16be7fb8bbaaf94bfbe245d0280095",
-  "analysis_code_commit": "b2e1653a95f38556757b8b5d733a2fc1b592da34",
+  "addendum_v1_1_commit": "3448f2e",
+  "addendum_v1_1_sha256": "d49d97b889eed4d8b760081718ba3be61d16be7fb8bbaaf94bfbe245d0280095",
+  "addendum_v1_2_commit": "50f1438",
+  "addendum_v1_2_sha256": "4912c7aa02a9f23ab0a08311c9fb0fe05f12cfb1c64a17af47f9de0a7ecc162b",
+  "analysis_code_commit": "31469d8c8876af72b24004fdb89fdb8fb71b9002",
   "artifact_sha256": {
     "data/ltcm_holdout/ltcm_historical_holdout_processed.csv": "cbdaaeac96612bd4006f920168208d8551e4bc98cb288afaa0c4bb8a9355370e",
     "data/ltcm_holdout/raw_DFF.csv": "a41e5426bcba423eac6ac64dfe74b1c55e12a17c537f602be13224f7b188fb4d",
