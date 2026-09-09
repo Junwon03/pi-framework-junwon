@@ -124,7 +124,7 @@ The verifier classifies 50 deterministic artifacts: 4 revised-primary outputs, 4
 |------|--------|------------------------|--------|--------------------|---------------------|---------------------------|
 | 2008 Financial | Traditional Finance | DFF \|Δ5d\| / TEDRATE \|Δ5d\| / TOTBKCR | FRED | 18.58× | 10.77× | 15.92× |
 | Terra-Luna | Digital Assets | BTC \|Δ5d\| / LUNC \|Δ1d\| / BTC–ETH–LUNC correlation (60d) | Yahoo Finance | 1.94× | 1.05× | 1.11× |
-| Fukushima | Physical Infrastructure | log10 daily seismic energy / Nikkei volatility (5d) / \|Δ USD/JPY\| | USGS / Yahoo Finance | 2.25× | 1.24× | 1.54× |
+| Fukushima | Physical Infrastructure | log10 daily seismic energy / Nikkei volatility (5d) / \|Δ USD/JPY\| | USGS / Yahoo Finance | 2.25× | 1.24× | 2.32× |
 | COVID-19 | Pandemic / Public Health | Global cases (7d average) / VIX / HY spread | JH CSSE / Yahoo Finance / FRED | 3,626.66× | 2,573.20× | 8,856.12× |
 | Supply Chain | Global Logistics | PCEDG \|MoM\| / positive delivery-time index / Freight PPI \|MoM\| | FRED | 9.21× | 3.33× | 4.65× |
 
