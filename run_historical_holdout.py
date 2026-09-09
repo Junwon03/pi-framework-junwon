@@ -4,6 +4,7 @@
 Frozen specification:
 - channel_selection_protocol_v1.md @ a179608
 - ltcm_protocol_addendum_v1_1.md @ 3448f2e
+- ltcm_protocol_addendum_v1_2.md @ 50f1438
 """
 from __future__ import annotations
 
@@ -23,9 +24,11 @@ DATA_DIR = BASE / "data" / "ltcm_holdout"
 OUT_DIR = BASE / "output" / "ltcm_holdout"
 
 PROTOCOL_SHA = "1a843d8cae550da2019c2bb8f39c38a5c7be11c5d8d75aa432cd5a3d33701f8d"
-ADDENDUM_SHA = "d49d97b889eed4d8b760081718ba3be61d16be7fb8bbaaf94bfbe245d0280095"
+ADDENDUM_V1_1_SHA = "d49d97b889eed4d8b760081718ba3be61d16be7fb8bbaaf94bfbe245d0280095"
+ADDENDUM_V1_2_SHA = "4912c7aa02a9f23ab0a08311c9fb0fe05f12cfb1c64a17af47f9de0a7ecc162b"
 PROTOCOL_COMMIT = "a179608"
-ADDENDUM_COMMIT = "3448f2e"
+ADDENDUM_V1_1_COMMIT = "3448f2e"
+ADDENDUM_V1_2_COMMIT = "50f1438"
 
 REFERENCE_DATE = "1998-09-23"
 FRED_VINTAGE_DATE = "2026-09-09"
@@ -76,7 +79,8 @@ def sha(path: Path) -> str:
 def verify_protocol() -> None:
     checks = (
         (BASE / "channel_selection_protocol_v1.md", PROTOCOL_SHA),
-        (BASE / "ltcm_protocol_addendum_v1_1.md", ADDENDUM_SHA),
+        (BASE / "ltcm_protocol_addendum_v1_1.md", ADDENDUM_V1_1_SHA),
+        (BASE / "ltcm_protocol_addendum_v1_2.md", ADDENDUM_V1_2_SHA),
     )
     for path, expected in checks:
         if not path.exists() or sha(path) != expected:
@@ -291,8 +295,10 @@ def main() -> int:
         "n_permutations": N_PERMUTATIONS,
         "protocol_commit": PROTOCOL_COMMIT,
         "protocol_sha256": PROTOCOL_SHA,
-        "addendum_commit": ADDENDUM_COMMIT,
-        "addendum_sha256": ADDENDUM_SHA,
+        "addendum_v1_1_commit": ADDENDUM_V1_1_COMMIT,
+        "addendum_v1_1_sha256": ADDENDUM_V1_1_SHA,
+        "addendum_v1_2_commit": ADDENDUM_V1_2_COMMIT,
+        "addendum_v1_2_sha256": ADDENDUM_V1_2_SHA,
         "analysis_code_commit": analysis_commit,
         "artifact_sha256": {
             p.relative_to(BASE).as_posix(): sha(p) for p in artifact_paths
