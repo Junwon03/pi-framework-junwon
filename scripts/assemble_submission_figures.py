@@ -10,8 +10,8 @@ SUBMISSION_DIR = FIGURE_ROOT / "submission"
 FIGURES = [
     (
         "Main Figure 1",
-        FIGURE_ROOT / "legacy" / "Figure1_Pi_timeseries",
-        "Figure1_Pi_timeseries",
+        FIGURE_ROOT / "revised" / "Figure1_workflow_revised",
+        "Figure1_workflow_revised",
     ),
     (
         "Main Figure 2",
