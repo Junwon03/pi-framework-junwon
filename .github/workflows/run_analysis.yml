@@ -82,6 +82,9 @@ jobs:
       - name: Generate revised supplementary channel-ablation figure
         run: python scripts/make_benchmark_revised.py
 
+      - name: Generate revised computational workflow figure
+        run: python scripts/make_workflow_figure.py
+
       - name: Assemble final submission figure set
         run: python scripts/assemble_submission_figures.py
 
