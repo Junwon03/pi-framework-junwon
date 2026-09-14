@@ -30,7 +30,7 @@ python run_method_comparison.py
 python scripts/assemble_submission_figures.py
 ```
 
-The final submission files are assembled in `output/figures/submission/`. The seven-figure set contains Figures 1 and 5 from the original-window pipeline, revised non-overlap Figures 2–4, revised Supplementary Figure S1, and the 2008 ST17 trajectory illustration as Supplementary Figure S2. Figure 6 is withdrawn and is not assembled. Legacy versions of Figures 2–4 remain available as audit outputs but are excluded from the final submission set.
+The final submission files are assembled in `output/figures/submission/`. The six-figure set contains revised Main Figures 1–4, revised Supplementary Figure S1, and the legacy 2008 ST17 trajectory illustration as Supplementary Figure S2. Legacy Figure 5 and Figure 6 are withdrawn and are not assembled. Other legacy figures remain available as audit outputs but are excluded from the final submission set.
 
 The 2008 variable-substitution diagnostic additionally requires the frozen FRED vintage:
 
@@ -69,7 +69,7 @@ A successful repository-wide verification reports `expected=50 matched=50 failed
 
 | Component | Scope and result |
 |---|---|
-| Post-control primary contrast | Mean stress strictly after the control-window end exceeds the full control-window mean in the five selected cases: 15.92×, 1.11×, 1.54×, 8,856.12×, and 4.65× |
+| Post-control primary contrast | Mean stress strictly after the control-window end exceeds the full control-window mean in the five selected cases: 15.92×, 1.11×, 2.32×, 8,856.12×, and 4.65× |
 | Three-formulation comparison | The unit-exponent multiplicative product is highest in 5/5 selected cases among the multiplicative, additive, and maximum three-channel formulations |
 | Post-control channel-alignment diagnostics | Independent shuffling gives unadjusted p < 0.05 in 4/5 cases; longer block shuffles weaken the COVID-19 result and Supply Chain remains non-significant |
 
@@ -87,6 +87,12 @@ A successful repository-wide verification reports `expected=50 matched=50 failed
 Original-window cumulative tables and permutations, retrospective pattern labels and their threshold grid, historical scale-invariance and perturbation outputs, ST15 alternate reconstruction, ST16 method comparisons, ST17 trajectories, and earlier enhancement tables are retained for reproducibility but excluded from the revised evidentiary package. The ST17 trajectory remains a retrospective audit analysis, while its 2008 illustration is included in the submission as Supplementary Figure S2.
 
 The study is a retrospective characterization of five selected cases. It does not establish universal validation, prospective prediction, calibrated false-alarm performance, causal channel roles, or population-level cross-domain generalization.
+
+### Frozen historical holdout
+
+LTCM 1998 is evaluated as a protocol-frozen historical holdout using the transferred 2008 financial specification. The specification and data-vintage correction were frozen before inspection of the holdout output. The post-control/control mean-stress ratio is 1.1469×. This is a historical holdout test, not prospective, forward, or external validation.
+
+Frozen LTCM artifacts are stored under `data/ltcm_holdout/` and `golden/ltcm_holdout/`, with verification provided by `scripts/verify_ltcm_holdout.py`.
 
 ## Output
 
@@ -110,9 +116,9 @@ All other generated CSV/TXT files are retained as legacy audit artifacts and rem
 
 ### Figure output structure
 
-- `output/figures/legacy/` — original-window and audit figures. Figures 1 and 5 and Supplementary Figure S2 are selected for the submission set.
-- `output/figures/revised/` — revised non-overlap Figures 2–4 and revised channel-ablation Supplementary Figure S1.
-- `output/figures/submission/` — the assembled seven-figure manuscript set in PNG and PDF formats, plus `SUBMISSION_MANIFEST.md`.
+- `output/figures/legacy/` — original-window and audit figures. Only Supplementary Figure S2 is selected from this folder for the submission set.
+- `output/figures/revised/` — revised Main Figures 1–4 and revised channel-ablation Supplementary Figure S1.
+- `output/figures/submission/` — the assembled six-figure manuscript set in PNG and PDF formats, plus `SUBMISSION_MANIFEST.md`.
 
 Generated figure outputs are reproducible build artifacts and are not part of the deterministic golden-hash baseline.
 
@@ -159,7 +165,7 @@ The standalone historical 2008 calculator uses `1/252`. A common observation-wei
 
 The original control window is fully contained within the crisis range in 4 of 5 cases. In the 2008 case it overlaps 347 of 574 control observations (60.45%). Consequently, the original cumulative crisis/control ratio is partly affected by duplicated observations and unequal accumulation lengths.
 
-The revised primary estimand removes exact overlap from the crisis side. It compares mean stress in crisis observations strictly after the control-window end with mean stress over the full prespecified control window. The resulting ratios are 15.92×, 1.11×, 1.54×, 8,856.12×, and 4.65× for the five selected cases, respectively.
+The revised primary estimand removes exact overlap from the crisis side. It compares mean stress in crisis observations strictly after the control-window end with mean stress over the full prespecified control window. The resulting ratios are 15.92×, 1.11×, 2.32×, 8,856.12×, and 4.65× for the five selected cases, respectively.
 
 This removes the direct overlap and cumulative-duration artifact from the primary contrast, but it does not create independently sampled controls or eliminate case-selection, variable-selection, event-date, carryover, and window-design limitations. The original-window permutation tables remain available as legacy diagnostics. A separate post-control permutation analysis evaluates temporal alignment among the three channels within the same post-control segment used by the primary comparison. Neither permutation procedure is a direct test of the crisis-control mean difference or independent prospective validation.
 
@@ -180,7 +186,7 @@ The three normalized channels each enter the product once with unit exponent. Th
 - **Secrets required**: `FRED_API_KEY` must be configured in GitHub Actions secrets for full pipeline.
 - **GitHub Actions**: The full pipeline runs in CI, verifies deterministic artifacts, generates the revised manuscript figures, assembles the final submission package, and uploads two artifacts:
   - `pi-analysis-results` — full analysis, data, and audit outputs
-  - `submission-figures` — the final seven-figure submission package
+  - `submission-figures` — the final six-figure submission package
 
 **Note on pi column in CSV data files:** The `pi` column in `data/` CSV files is recomputed at runtime by `run_all.py` using `stress × dt` (dt=1/365 for daily, dt=1/12 for monthly). Raw observations (rho, psi, omega, rho_norm, psi_norm, omega_norm, stress) are unchanged from original computation. The 2008 case CSV was originally generated with dt=1/252 by `pi_calculator.py`, but `run_all.py` overrides this with dt=1/365 for consistency with other cases. This has no effect on any reported ratio or test statistic.
 
@@ -192,7 +198,7 @@ The three normalized channels each enter the product once with unit exponent. Th
 - **Terra-Luna marginal separation**: The original full-window mean-stress ratio is 1.0525× and the post-control ratio is 1.1149×. The post-control independent and block-shuffle diagnostics are significant, but the observed crisis-control stress-intensity difference remains small and specification-sensitive.
 - **Legacy pattern-label audit:** Ductile, Brittle, and Pre-loaded labels and their threshold grid are retained for reproducibility but excluded from the revised evidentiary package. They are not established system classes.
 - **Legacy SVB feasibility audit:** A like-for-like SVB-era transfer was infeasible because the TEDRATE specification cannot be reconstructed over the requested period. The optional audit is retained for transparency and is not treated as out-of-sample validation.
-- **Additional comparison cases:** Dot-com, Repo, and Thailand have exploratory mean-stress ratios of 0.904×, 1.203×, and 3.725×. Their mixed and metric-dependent results are reported as boundary comparisons rather than formal controls or validation episodes; their pairwise correlations are reported descriptively without a pass/fail threshold.
+- **Additional comparison cases:** Dot-com, Repo, and Thailand have exploratory mean-stress ratios of 0.904×, 1.203×, and 3.529×. Their mixed and metric-dependent results are reported as boundary comparisons rather than formal controls or validation episodes; their pairwise correlations are reported descriptively without a pass/fail threshold.
 - **Sample size**: The five primary cases support a proof-of-concept retrospective characterization only. They are insufficient for statistical generalization, universal validation, or estimation of cross-domain performance.
 - **Variable selection**: Variables were selected through domain judgment and iterative, partly post hoc refinement. The specifications are not claimed to be unique or optimal, and inferential results are conditional on these selected variables and windows.
 - **Legacy ST17 trajectory audit:** Retrospective rolling-threshold trajectories and control exceedances are retained as audit artifacts but excluded from revised evidence. They do not establish prospective warning lead, forecasting performance, or calibrated false-alarm rates.
@@ -233,9 +239,9 @@ Note: Proxy series (e.g., HYG/LQD fallback) exist only as contingency logic in d
 ├── scripts/
 │   ├── make_nonoverlap_figures.py      # Revised manuscript Figures 2–4
 │   ├── make_benchmark_revised.py       # Revised Supplementary Figure S1
-│   ├── assemble_submission_figures.py  # Assemble final seven-figure submission set
+│   ├── assemble_submission_figures.py  # Assemble final six-figure submission set
 │   └── verify_outputs.py               # Classified deterministic artifact verifier
-├── run_all.py                          # Original-window and legacy generator; retained Figures 1 and 5
+├── run_all.py                          # Original-window and legacy generator; retains legacy Figures 1 and 5
 ├── run_benchmark.py                    # Historical channel-ablation audit
 ├── run_v12_enhancements.py             # Legacy block-permutation and correlation diagnostics
 ├── run_v13_enhancements.py             # Sliding window and additional cases
@@ -249,7 +255,7 @@ Note: Proxy series (e.g., HYG/LQD fallback) exist only as contingency logic in d
 ├── output/figures/
 │   ├── legacy/                         # Original-window and audit figures
 │   ├── revised/                        # Revised manuscript figures
-│   └── submission/                     # Final seven-figure package and manifest
+│   └── submission/                     # Final six-figure package and manifest
 ├── requirements-lock.txt               # Pinned Python dependency versions
 ├── golden/                             # Frozen baseline outputs used in CI reproducibility check
 ├── Audit report.md                     # Code and data integrity audit results
