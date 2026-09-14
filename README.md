@@ -4,7 +4,7 @@ Cross-case retrospective characterization of systemic stress using multiplicativ
 
 ## Quick Start
 
-Install the locked environment:
+Install the pinned dependencies:
 
 ```bash
 pip install -r requirements-lock.txt
