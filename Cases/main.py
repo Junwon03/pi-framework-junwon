@@ -3,6 +3,11 @@
 =============================================
 2008 Global Financial Crisis
 
+Historical developmental pilot retained for audit transparency.
+The exploratory NEXT STEPS decision rule at the end of this script records
+the original development workflow. It is not part of the revised evidentiary
+package, the primary post-control analysis, or the frozen LTCM holdout.
+
 실행: python main.py --fred-key YOUR_KEY --fred-vintage YYYY-MM-DD
 또는: FRED_API_KEY와 FRED_VINTAGE_DATE 환경변수 설정 후 python main.py
 

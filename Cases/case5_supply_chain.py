@@ -4,13 +4,14 @@ Case 5: Global Supply Chain Crisis (2021-2022)
 Domain: Supply Chain / Logistics
 ========================================
   ρ = PCEDG (Personal Consumption Expenditures: Durable Goods, FRED)
-      외부 충격 = 소비 폭발 (보조금 → 내구재 수요 급증)
+      heuristic role: durable-goods demand-change proxy
   Ψ = DTCDISA066MSFRBNY (Empire State Mfg: Delivery Time, FRED)
-      내부 반응 = 납기 지연 (공급 병목)
+      heuristic role: delivery-delay proxy
   Ω = WPU3012 (PPI: Freight Transportation, FRED)
-      구조적 결합 = 운송비 폭등
+      heuristic role: freight-cost-change proxy
 
-물리적 인과 사슬: 수요 폭발(원인) → 납기 지연(반응) → 운송비 폭등(상태)
+These channel roles are retrospective measurement choices and do not
+constitute an identified causal chain.
 
 Data Sources: ALL from FRED (Federal Reserve Bank of St. Louis)
 Note: Monthly data → DPY=12, dt=1/12

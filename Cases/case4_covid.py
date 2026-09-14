@@ -3,14 +3,15 @@
 Case 4: COVID-19 Pandemic (2020-03)
 Domain: Global Pandemic / Financial Contagion
 ========================================
-  ρ = WHO/Johns Hopkins 일별 신규 확진자 수 (7일 rolling)
-      외부 충격 = 팬데믹 확산 (applied load)
+  ρ = WHO/Johns Hopkins daily confirmed-case channel (7-day rolling)
+      heuristic role: pandemic-pressure proxy
   Ψ = VIX (CBOE Volatility Index)
-      내부 반응 = 시장 공포 (stress response)
+      heuristic role: market-stress proxy
   Ω = ICE BofA High Yield Spread (BAMLH0A0HYM2, FRED)
-      구조적 결합 = 신용시장 동결 (reserve depletion)
+      heuristic role: credit-market stress proxy
 
-물리적 인과 사슬: 팬데믹(원인) → 시장 공포(반응) → 신용 동결(상태)
+These channel roles are retrospective measurement choices and do not
+constitute an identified causal chain.
 
 Data Sources:
   - Johns Hopkins CSSE COVID-19 Dataset (github.com/CSSEGISandData)

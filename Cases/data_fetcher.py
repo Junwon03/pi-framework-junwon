@@ -112,10 +112,10 @@ def fetch_fred_series(series_id: str, start: str, end: str) -> pd.Series:
 
 def compute_rate_of_change(series: pd.Series, delta: int = DELTA_DAYS) -> pd.Series:
     """
-    변화율 절대값 계산: |Δ(delta일)|
-    
-    F = ma: 시스템 충격은 수준이 아니라 변화 속도에서 온다.
-    절대값: 방향이 아니라 크기가 손상을 만든다.
+    Compute the absolute delta-observation change: |Δ(delta)|.
+
+    The absolute change is the prespecified empirical transformation
+    for this channel; no physical or causal interpretation is assumed.
     """
     change = series.diff(delta).abs()
     return change

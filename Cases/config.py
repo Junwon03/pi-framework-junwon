@@ -2,7 +2,7 @@
 Π Structural Stability Index - Phase 1 Pilot Configuration
 ============================================================
 2008 Global Financial Crisis
-Physics-grounded variable mapping
+Heuristic three-channel variable mapping
 """
 
 # ============================================================
@@ -33,19 +33,15 @@ CRISIS_START = "2005-01-01"
 CRISIS_END = "2009-03-31"
 
 # ============================================================
-# 변수 매핑 (Physics-grounded)
+# Heuristic channel mapping
 # ============================================================
-# ρ (외부 압력) = DFF 변화율 |Δ5일|
-#   → F=ma: 시스템 충격은 속도에서 온다
-#   → 밀도행렬 ρ: 외부 환경과의 상호작용
+# ρ = DFF absolute 5-observation change
+# Ψ = TEDRATE absolute 5-observation change
+# Ω = TOTBKCR level aligned to the common daily index
 #
-# Ψ (내부 가속) = TEDRATE 변화율 |Δ5일|
-#   → 파동함수 Ψ: 시스템 내부 상태 동역학
-#   → 은행 간 신뢰 붕괴의 자생적 가속
-#
-# Ω (구조적 결합) = TOTBKCR 수준 (월별 → 보간)
-#   → 미시상태 다중도: 자유도 감소
-#   → 구조적 결합은 상태량 (slow-varying)
+# These labels are heuristic measurement roles used by the
+# empirical specification. They are not physical quantities,
+# identified causal components, or claims of physical law.
 
 FRED_SERIES = {
     'rho': 'DFF',      # Federal Funds Rate (일별)
