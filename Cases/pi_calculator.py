@@ -1,23 +1,25 @@
 """
 Π Phase 1 - Core Calculator
 =============================
-순수 누적 적분 기반 Π 지수 계산
 
-수학적 정의:
+Deterministic three-channel stress construction.
+
+Mathematical definition:
     S(t) = ρ̃(t) · Ψ̃(t) · Ω̃(t)
     Π(T) = Σ S(t) · Δt/τ₀
 
-물리적 근거:
-    - 열역학 제2법칙: 비가역적 엔트로피 누적
-    - 볼츠만 통계역학: 미시상태 소진 (W → 1)
-    - 슈뢰딩거: 중첩 상태의 붕괴 (파동함수 collapse)
-    - Miner's Rule: D = Σ(nᵢ/Nᵢ), D → 1.0에서 파단
+Normalization:
+    - Each non-negative transformed channel is divided by its
+      fixed calibration-period percentile limit.
+    - The default calibration percentile is the 99th percentile (P99).
+    - Normalized values are not capped at 1 and may exceed 1.
+    - Calibration uses the declared pre-event stable period.
 
-정규화:
-    - 안정기(위기 이전) 99th percentile = P_limit
-    - 각 변수를 P_limit으로 나눠 0~1 비율로
-    - Miner's Rule의 Nᵢ에 해당
-    - 순환 논증 방지: 기준은 붕괴 이전 데이터만으로 결정
+Interpretation:
+    - The three channels are heuristic measurement components.
+    - The multiplicative construction is an empirical specification,
+      not a physical law or causal model.
+    - No universal optimality or forecasting interpretation is assumed.
 """
 
 import pandas as pd

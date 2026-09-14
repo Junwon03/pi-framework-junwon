@@ -29,11 +29,6 @@ FIGURES = [
         "Figure4_permutation_tests_revised",
     ),
     (
-        "Main Figure 5",
-        FIGURE_ROOT / "legacy" / "Figure5_failure_modes",
-        "Figure5_failure_modes",
-    ),
-    (
         "Supplementary Figure S1",
         FIGURE_ROOT
         / "revised"
@@ -91,7 +86,7 @@ def main() -> None:
             "",
             "## Excluded output",
             "",
-            "- Figure 6 is withdrawn and is not included in this submission set.",
+            "- Legacy Figure 5 and Figure 6 are withdrawn and are not included in this submission set.",
             "- Legacy Figures 2–4 are retained for audit purposes but are not included here.",
             "",
         ]
