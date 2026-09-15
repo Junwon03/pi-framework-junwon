@@ -1,5 +1,7 @@
 # Π Structural Stability Index
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22765907.svg)](https://doi.org/10.5281/zenodo.22765907)
+
 Cross-case retrospective characterization of systemic stress using multiplicative stress integration.
 
 ## Quick Start
@@ -278,7 +280,7 @@ The complete code is publicly available for independent verification. A full aud
 
 ## Citation
 
-If you use this framework, please cite:
+If you use this framework, please cite: https://doi.org/10.5281/zenodo.22765907
 
 ```
 [Paper citation pending]
