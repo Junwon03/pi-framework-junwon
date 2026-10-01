@@ -1,0 +1,24 @@
+{
+  "status": "FINAL_PRE_OUTPUT_SELECTED_EVENT",
+  "event_id": "usp000c8mb",
+  "utc_origin_timestamp": "2003-09-25 21:08:00.030000+00:00",
+  "jst_origin_timestamp": "2003-09-26 06:08:00.030000+09:00",
+  "reference_date_jst": "2003-09-26",
+  "jst_origin_time": "06:08:00",
+  "magnitude": 7.4,
+  "latitude": 41.774,
+  "longitude": 143.593,
+  "place": "119 km ESE of Shizunai-furukawach?, Japan",
+  "control_observations": 250,
+  "post_control_observations": 250,
+  "control_rule": "250 aligned valid observations strictly preceding the JST reference date",
+  "post_control_rule": "JST reference-date observation plus the next 249 aligned valid observations",
+  "normalization": "Channel-specific P99 from control/calibration observations; no upper cap",
+  "primary_score": "S = z1 * z2 * z3",
+  "benchmarks": [
+    "sum on identical normalized inputs",
+    "maximum on identical normalized inputs"
+  ],
+  "result_policy": "Report frozen result regardless of direction, magnitude, or operator ranking.",
+  "redraw_permitted": false
+}

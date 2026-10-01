@@ -1,0 +1,22 @@
+{
+  "status": "FINAL_PRE_OUTPUT_SELECTION",
+  "seed": 731006,
+  "rng": "NumPy Generator(PCG64(SeedSequence([731006])))",
+  "eligible_candidate_count": 6,
+  "eligible_event_ids_sorted": [
+    "official20030925195006360_27",
+    "usp000c8mb",
+    "usp000cbpa",
+    "usp000d9h1",
+    "usp000dxe2",
+    "usp000e462"
+  ],
+  "draw_index_zero_based": 1,
+  "selected_event_id": "usp000c8mb",
+  "numpy_version": "1.26.4",
+  "candidate_universe_sha256": "7f6c16e372b22e37c3a1786eb777963f91643412c2fc55f32b9df5b22c5dfbc8",
+  "eligibility_audit_sha256": "c034fe71b05b463880e9edb29bd621f6a7a8726f7ff574542803d35a4d7fc0ab",
+  "selection_script_sha256": "0a194bae1bff07b1b6871113bd38b14eb1b599009de9649fbf3c099acc38cc92",
+  "redraw_permitted": false,
+  "selection_basis": "Frozen eligibility only; no framework score, operator contrast, or outcome was used for selection."
+}
