@@ -170,6 +170,11 @@ jobs:
 
           echo "Required manuscript figures: OK"
 
+      - name: Remove Python cache files
+        run: |
+          find zenodo_v4 -type d -name "__pycache__" -prune -exec rm -rf {} +
+          find zenodo_v4 -type f -name "*.pyc" -delete
+
       - name: Assemble Zenodo v4 analysis package
         run: |
           mkdir -p _artifact/zenodo_v4_analysis_package
