@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0",
+  "status": "FINAL_PRE_FREEZE_METADATA_QUERY",
+  "purpose": "Enumerate Holdout-2 candidate earthquakes only; no framework outputs are computed by this query.",
+  "source_provenance": {
+    "repository": "Junwon03/pi-framework-junwon",
+    "archived_commit": "df0f0ca58bcfdd6582ef52c936ad7a8ac68b9937",
+    "source_file": "Cases/case3_fukushima.py",
+    "source_git_blob_sha1": "f2e4aa81a1d5ea6610fe428306d3858668a27c5c",
+    "source_file_sha256": "c585b0068369f8745edd08efd82f06def5006d003d4ac6521fd1884a15517ed4",
+    "uploaded_zip_source_file_matches_archived_blob": true
+  },
+  "fukushima_template_constants": {
+    "minlatitude": 30.0,
+    "maxlatitude": 46.0,
+    "minlongitude": 128.0,
+    "maxlongitude": 146.0,
+    "seismic_load_minmagnitude": 2.0,
+    "seismic_energy_formula": "E = 10^(1.5*M + 4.8)",
+    "seismic_daily_transform": "log10(sum daily energy) on positive-event days; 0 on verified no-event days",
+    "nikkei_ticker": "^N225",
+    "nikkei_transform": "daily pct return; 5-observation rolling SD * sqrt(252)",
+    "fx_ticker": "JPY=X",
+    "fx_transform": "absolute daily pct change"
+  },
+  "candidate_universe": {
+    "query_endpoint": "https://earthquake.usgs.gov/fdsnws/event/1/query",
+    "count_endpoint": "https://earthquake.usgs.gov/fdsnws/event/1/count",
+    "eventtype": "earthquake",
+    "minimum_candidate_magnitude": 7.0,
+    "geographic_bounds": {
+      "minlatitude": 30.0,
+      "maxlatitude": 46.0,
+      "minlongitude": 128.0,
+      "maxlongitude": 146.0
+    },
+    "conceptual_date_interval": {
+      "timezone": "Asia/Tokyo",
+      "start_date_inclusive": "1995-01-01",
+      "end_date_inclusive": "2025-06-30"
+    },
+    "retrieval_utc_envelope": {
+      "starttime_inclusive": "1994-12-31T15:00:00Z",
+      "endtime_boundary": "2025-06-30T15:00:00Z",
+      "post_filter_rule": "Convert each USGS origin timestamp to Asia/Tokyo and retain only JST calendar dates 1995-01-01 through 2025-06-30 inclusive."
+    },
+    "format": "csv",
+    "orderby": "time-asc",
+    "limit": 20000,
+    "completeness_check": "USGS count endpoint must equal returned CSV row count before filtering.",
+    "stored_sort_order": "event_id ascending",
+    "manual_additions_permitted": false
+  },
+  "eligibility_rules_reference": {
+    "same_day_cutoff_jst": "15:00",
+    "event_date_must_be_common_valid_financial_date": true,
+    "required_pre_event_aligned_observations": 250,
+    "required_post_event_aligned_observations": 250,
+    "fukushima_development_interval_excluded": [
+      "2010-06-08",
+      "2011-09-29"
+    ],
+    "prior_project_event_ids_excluded": true,
+    "proxy_replacement_permitted": false
+  },
+  "selection": {
+    "seed": 731006,
+    "rng": "NumPy Generator(PCG64(SeedSequence([731006])))",
+    "draw_rule": "After eligibility is frozen and eligible candidates are sorted by event_id ascending, draw one integer uniformly from [0, N). No redraw based on result."
+  }
+}
