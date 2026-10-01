@@ -5,6 +5,11 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
+import socket
+import urllib3.util.connection as urllib3_connection
+
+# Environment-specific network fix: force IPv4 for USGS requests.
+urllib3_connection.allowed_gai_family = lambda: socket.AF_INET
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / "zenodo_v4" / "config" / "holdout2_candidate_query.json"
