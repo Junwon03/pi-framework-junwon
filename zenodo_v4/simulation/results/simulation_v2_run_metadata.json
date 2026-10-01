@@ -1,0 +1,54 @@
+{
+  "status": "FROZEN_SIMULATION_V2_RESULT",
+  "config_sha256": "2a1157227ef05f7b82160c67b9810053ffc3816c9636c613da98c61f7dd905ae",
+  "master_seed": 731001,
+  "bit_generator": "PCG64",
+  "numpy_version": "1.26.4",
+  "pandas_version": "2.2.3",
+  "python_version": "3.11.8",
+  "design": {
+    "channels": 3,
+    "phi": 0.5,
+    "burn_in": 500,
+    "control_n": 250,
+    "post_control_n": 250,
+    "stress_interval_post_1based": [
+      76,
+      175
+    ],
+    "k": [
+      1,
+      2,
+      3
+    ],
+    "rho": [
+      0.0,
+      0.3,
+      0.6,
+      0.9
+    ],
+    "delta": [
+      0.5,
+      1.0,
+      1.5
+    ],
+    "alternative_replications_per_cell": 1000,
+    "matched_null_replications_per_rho": 1000
+  },
+  "normalizations": [
+    "P99_scaling",
+    "empirical_percentile"
+  ],
+  "operators": [
+    "product",
+    "sum",
+    "maximum"
+  ],
+  "primary_statistic": "T = log(mean(S_post)/mean(S_control))",
+  "standardized_separation": "D = (mean(T_alt)-mean(T_null))/sd(T_null)",
+  "row_counts": {
+    "alternative_replicate_rows": 216000,
+    "null_replicate_rows": 24000,
+    "summary_rows": 216
+  }
+}
