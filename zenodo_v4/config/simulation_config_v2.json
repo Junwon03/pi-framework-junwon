@@ -1,0 +1,179 @@
+{
+  "schema_version": "2.1",
+  "status": "FINAL_PRE_FREEZE_METHOD_REVIEWED",
+  "protocol_date": "2026-10-01",
+  "parent_framework": "A Cross-Domain Multiplicative Framework for Systemic Stress",
+  "design_principle": "simple model, hard tests",
+  "scope": {
+    "primary_questions": [
+      "activation_breadth",
+      "cross_channel_dependence"
+    ],
+    "excluded_from_primary_v2": [
+      "temporal_misalignment_experiment",
+      "heavy_tail_experiment",
+      "zero_inflation_experiment",
+      "large_placebo_program",
+      "learned_operator_family",
+      "forecasting_or_classification"
+    ]
+  },
+  "simulation": {
+    "latent_process": "three_dimensional_gaussian_AR1",
+    "channels": 3,
+    "phi": 0.5,
+    "innovation_covariance": "equicorrelation",
+    "innovation_marginal_variance": 1.0,
+    "latent_recursion": "g_t = phi*g_tminus1 + sqrt(1-phi^2)*epsilon_t",
+    "initial_latent_value": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "burn_in": 500,
+    "control_n": 250,
+    "post_control_n": 250,
+    "calibration_segment": "control",
+    "stress_interval_post_control_1based": [
+      76,
+      175
+    ],
+    "stress_interval_length": 100,
+    "active_channel_rule": "first_k_channels",
+    "grid": {
+      "k": [
+        1,
+        2,
+        3
+      ],
+      "rho": [
+        0.0,
+        0.3,
+        0.6,
+        0.9
+      ],
+      "delta": [
+        0.5,
+        1.0,
+        1.5
+      ],
+      "delta_units": "channel_specific_control_observed_x_sample_sd_ddof1_additive"
+    },
+    "alternative_replications_per_cell": 1000,
+    "matched_null_replications_per_rho": 1000,
+    "matched_null_delta": 0.0,
+    "total_alternative_cells": 36,
+    "baseline_observation_transform": "x = exp(g)",
+    "stress_injection": {
+      "domain": "observed_x_scale",
+      "control_scale": "sample_sd_of_x_over_control",
+      "sample_sd_ddof": 1,
+      "formula": "x_star_jt = x_jt + delta * sd_control(x_j) for active channels during post-control observations 76-175; otherwise x_star_jt = x_jt",
+      "interpretation": "delta is an additive shift in channel-specific control-period observed-scale standard-deviation units, not a multiplicative latent-scale shock"
+    }
+  },
+  "normalization": {
+    "primary": {
+      "name": "P99_scaling",
+      "formula": "z_jt = x_star_jt / P99_j(control x); control observations have x_star = x",
+      "upper_cap": null,
+      "simulation_input": "perturbed x_star for evaluation observations; unperturbed control x for calibration"
+    },
+    "supplementary": {
+      "name": "empirical_percentile",
+      "formula": "u_jt = (0.5 + count{x_ji(control) <= x_star_jt}) / (n_control + 1)",
+      "paired_same_datasets": true,
+      "role": "supplementary_robustness_only"
+    }
+  },
+  "operators": {
+    "product": "z1*z2*z3",
+    "sum": "z1+z2+z3",
+    "maximum": "max(z1,z2,z3)",
+    "fitting_or_tuning": false
+  },
+  "summaries": {
+    "within_series_contrast_T": "log(mean(S_post)/mean(S_control))",
+    "standardized_separation_D": "(mean(T_alt)-mean(T_null))/sd(T_null)",
+    "monte_carlo_interval_for_mean_T": "mean +/- 1.96*(sample_sd/sqrt(n))",
+    "no_global_winner": true,
+    "no_threshold_optimization": true,
+    "no_sensitivity_specificity_auc": true
+  },
+  "randomness": {
+    "library": "numpy",
+    "bit_generator": "PCG64",
+    "master_seed": 731001,
+    "value_order": {
+      "k": [
+        1,
+        2,
+        3
+      ],
+      "rho": [
+        0.0,
+        0.3,
+        0.6,
+        0.9
+      ],
+      "delta": [
+        0.5,
+        1.0,
+        1.5
+      ]
+    },
+    "alternative_seed_sequence": "SeedSequence([731001, k_index, rho_index, delta_index, 1]) using zero-based indices in value_order",
+    "null_seed_sequence": "SeedSequence([731001, 0, rho_index, 0, 0]) using zero-based rho_index",
+    "supplementary_normalization_reuses_primary_datasets": true,
+    "holdout2_event_draw_seed": 731006
+  },
+  "existing_evidence": {
+    "development_cases": [
+      "2008_financial",
+      "Terra_Luna",
+      "Fukushima",
+      "COVID_19",
+      "global_supply_chain"
+    ],
+    "development_cases_status": "retrospective_development_only",
+    "historical_holdout_1": "LTCM_1998",
+    "historical_holdout_1_status": "retain_frozen_original_result_unchanged"
+  },
+  "holdout2": {
+    "plan_file": "Holdout_2_Eligibility_Plan_FINAL_PreOutput.docx",
+    "preferred_domain": "Japan_region_earthquake_physical_disaster",
+    "selection_seed": 731006,
+    "framework_output_before_selection_freeze": false,
+    "template_status": "development_informed_not_independent_validation",
+    "event_selection_status": "output_blind_random_draw_after_frozen_eligibility",
+    "event_timezone": "Asia/Tokyo",
+    "same_day_alignment_cutoff_jst": "15:00",
+    "fukushima_development_overlap_excluded": "2010-06-08/2011-09-29",
+    "source_fukushima_geometry": {
+      "minlatitude": 30.0,
+      "maxlatitude": 46.0,
+      "minlongitude": 128.0,
+      "maxlongitude": 146.0,
+      "seismic_load_minmagnitude": 2.0,
+      "source_commit": "df0f0ca58bcfdd6582ef52c936ad7a8ac68b9937",
+      "source_file": "Cases/case3_fukushima.py",
+      "source_git_blob_sha1": "f2e4aa81a1d5ea6610fe428306d3858668a27c5c",
+      "source_file_sha256": "c585b0068369f8745edd08efd82f06def5006d003d4ac6521fd1884a15517ed4"
+    },
+    "candidate_interval": {
+      "timezone": "Asia/Tokyo",
+      "start_date_inclusive": "1995-01-01",
+      "end_date_inclusive": "2025-06-30"
+    }
+  },
+  "freeze": {
+    "required_before_any_v2_output": [
+      "Protocol_v2_FINAL_PreFreeze.docx committed",
+      "simulation_config_v2.json committed",
+      "Holdout_2_Eligibility_Plan_FINAL_PreOutput.docx committed",
+      "existing development archive tagged/preserved"
+    ],
+    "post_freeze_changes_require_dated_addendum": true,
+    "result_driven_retuning_prohibited": true
+  }
+}

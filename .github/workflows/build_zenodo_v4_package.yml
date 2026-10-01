@@ -1,0 +1,253 @@
+name: Build Zenodo v4 Analysis Package
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+      - evaluation-v2-pre-results
+    paths:
+      - ".github/workflows/build_zenodo_v4_package.yml"
+      - "zenodo_v4/**"
+      - "archive/zenodo_v3/golden/output/**"
+      - "requirements-lock.txt"
+
+jobs:
+  build-package:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11.8"
+
+      - name: Install locked dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-lock.txt
+
+      - name: Syntax-check v4 analysis scripts
+        run: |
+          python -m py_compile \
+            zenodo_v4/holdout2/build_candidate_universe.py \
+            zenodo_v4/holdout2/build_eligibility_audit.py \
+            zenodo_v4/holdout2/select_holdout2_event.py \
+            zenodo_v4/holdout2/run_holdout2_analysis.py \
+            zenodo_v4/simulation/run_simulation_v2.py \
+            zenodo_v4/simulation/make_figure_simulation_primary.py \
+            zenodo_v4/simulation/make_figure_simulation_combined.py
+
+      - name: Verify Holdout 2 pre-output freeze hashes
+        run: |
+          sha256sum -c zenodo_v4/holdout2/holdout2_preoutput_sha256.txt
+
+      - name: Verify Holdout 2 frozen result hashes
+        run: |
+          sha256sum -c zenodo_v4/holdout2/holdout2_result_sha256.txt
+
+      - name: Verify Simulation v2 frozen result hashes
+        run: |
+          sha256sum -c zenodo_v4/simulation/simulation_v2_result_sha256.txt
+
+      - name: Validate frozen result structure
+        run: |
+          python - <<'PY'
+          import json
+          import numpy as np
+          import pandas as pd
+          from pathlib import Path
+
+          root = Path("zenodo_v4")
+
+          # ----------------------------------------------------------
+          # Holdout 2
+          # ----------------------------------------------------------
+          holdout = pd.read_csv(
+              root
+              / "holdout2"
+              / "results"
+              / "holdout2_aligned_series.csv"
+          )
+
+          with (
+              root
+              / "holdout2"
+              / "results"
+              / "holdout2_summary.json"
+          ).open(encoding="utf-8") as f:
+              holdout_summary = json.load(f)
+
+          assert len(holdout) == 500
+          assert holdout["period"].value_counts().to_dict() == {
+              "control": 250,
+              "post": 250,
+          }
+          assert int(holdout.isna().sum().sum()) == 0
+          assert (
+              holdout_summary["selected_event"]["event_id"]
+              == "usp000c8mb"
+          )
+
+          # ----------------------------------------------------------
+          # Simulation v2
+          # ----------------------------------------------------------
+          sim_dir = root / "simulation" / "results"
+
+          alt = pd.read_csv(
+              sim_dir / "simulation_v2_alt_replicates.csv"
+          )
+          null = pd.read_csv(
+              sim_dir / "simulation_v2_null_replicates.csv"
+          )
+          summary = pd.read_csv(
+              sim_dir / "simulation_v2_summary.csv"
+          )
+
+          assert len(alt) == 216000
+          assert len(null) == 24000
+          assert len(summary) == 216
+
+          assert int(alt.isna().sum().sum()) == 0
+          assert int(null.isna().sum().sum()) == 0
+          assert int(summary.isna().sum().sum()) == 0
+
+          assert np.isfinite(alt["T"]).all()
+          assert np.isfinite(null["T"]).all()
+          assert np.isfinite(
+              summary.select_dtypes(include="number").to_numpy()
+          ).all()
+
+          assert not alt.duplicated(
+              [
+                  "k",
+                  "rho",
+                  "delta",
+                  "replicate",
+                  "normalization",
+                  "operator",
+              ]
+          ).any()
+
+          assert not null.duplicated(
+              [
+                  "rho",
+                  "replicate",
+                  "normalization",
+                  "operator",
+              ]
+          ).any()
+
+          assert not summary.duplicated(
+              [
+                  "k",
+                  "rho",
+                  "delta",
+                  "normalization",
+                  "operator",
+              ]
+          ).any()
+
+          print("Frozen result structure: OK")
+          PY
+
+      - name: Check required manuscript figures
+        run: |
+          test -f archive/zenodo_v3/golden/output/figures/Figure1_Pi_timeseries.png
+          test -f archive/zenodo_v3/golden/output/figures/Figure2_cross_domain_separation.png
+          test -f archive/zenodo_v3/golden/output/figures/Figure3_mult_vs_add_vs_max.png
+          test -f archive/zenodo_v3/golden/output/figures/Figure4_permutation_tests.png
+          test -f archive/zenodo_v3/golden/output/figures/Figure5_failure_modes.png
+          test -f archive/zenodo_v3/golden/output/figures/Figure6_robustness.png
+          test -f archive/zenodo_v3/golden/output/figures/Figure7_pseudo_prospective.png
+
+          test -f zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.png
+          test -f zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.pdf
+
+          echo "Required manuscript figures: OK"
+
+      - name: Remove Python cache files
+        run: |
+          find zenodo_v4 -type d -name "__pycache__" -prune -exec rm -rf {} +
+          find zenodo_v4 -type f -name "*.pyc" -delete
+
+      - name: Assemble Zenodo v4 analysis package
+        run: |
+          mkdir -p _artifact/zenodo_v4_analysis_package
+          mkdir -p _artifact/manuscript_figures/legacy_v3
+          mkdir -p _artifact/manuscript_figures/zenodo_v4
+
+          cp README.md \
+            _artifact/zenodo_v4_analysis_package/
+
+          cp requirements-lock.txt \
+            _artifact/zenodo_v4_analysis_package/
+
+          cp -R zenodo_v4 \
+            _artifact/zenodo_v4_analysis_package/
+
+          mkdir -p \
+            _artifact/zenodo_v4_analysis_package/legacy_v3_golden
+
+          cp -R archive/zenodo_v3/golden/output \
+            _artifact/zenodo_v4_analysis_package/legacy_v3_golden/
+
+          cp archive/zenodo_v3/golden/output/figures/*.png \
+            _artifact/manuscript_figures/legacy_v3/
+
+          cp archive/zenodo_v3/golden/output/figures/*.pdf \
+            _artifact/manuscript_figures/legacy_v3/
+
+          cp \
+            zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.png \
+            _artifact/manuscript_figures/zenodo_v4/
+
+          cp \
+            zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.pdf \
+            _artifact/manuscript_figures/zenodo_v4/
+
+          {
+            echo "Zenodo v4 analysis package"
+            echo "=========================="
+            echo
+            echo "Git commit:"
+            git rev-parse HEAD
+            echo
+            echo "Git branch/ref:"
+            echo "${GITHUB_REF}"
+            echo
+            echo "Contents:"
+            echo "- Frozen Holdout 2 design, snapshots, results, and manifests"
+            echo "- Frozen Simulation v2 configuration, replicate results, summaries, and manifests"
+            echo "- Final combined Simulation v2 manuscript figure"
+            echo "- Archived Zenodo v3 golden outputs and figures"
+            echo
+            echo "Generated by GitHub Actions run:"
+            echo "${GITHUB_RUN_ID}"
+          } > \
+            _artifact/zenodo_v4_analysis_package/PACKAGE_CONTENTS.txt
+
+          find _artifact/zenodo_v4_analysis_package \
+            -type f \
+            | sort \
+            > _artifact/zenodo_v4_analysis_package/FILE_LIST.txt
+
+      - name: Upload complete Zenodo v4 analysis package
+        uses: actions/upload-artifact@v4
+        with:
+          name: zenodo-v4-analysis-package
+          path: _artifact/zenodo_v4_analysis_package/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload manuscript figures
+        uses: actions/upload-artifact@v4
+        with:
+          name: manuscript-figures
+          path: _artifact/manuscript_figures/
+          if-no-files-found: error
+          retention-days: 30

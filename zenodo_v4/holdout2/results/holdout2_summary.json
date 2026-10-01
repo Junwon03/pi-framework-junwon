@@ -1,0 +1,92 @@
+{
+  "status": "FROZEN_HOLDOUT2_RESULT",
+  "selected_event": {
+    "event_id": "usp000c8mb",
+    "reference_date_jst": "2003-09-26",
+    "magnitude": 7.4,
+    "place": "119 km ESE of Shizunai-furukawach?, Japan"
+  },
+  "analysis_window": {
+    "control_observations": 250,
+    "post_observations": 250,
+    "control_start": "2002-09-19",
+    "control_end": "2003-09-25",
+    "post_start": "2003-09-26",
+    "post_end": "2004-10-01"
+  },
+  "normalization_p99": {
+    "x1_rho": 13.653482855439353,
+    "x2_psi": 0.3656350890002745,
+    "x3_omega": 0.015335184009558718
+  },
+  "channel_means": {
+    "x1_rho": {
+      "mean_control": 8.590439636964026,
+      "mean_post": 9.64758970752951
+    },
+    "x2_psi": {
+      "mean_control": 0.21080583243078455,
+      "mean_post": 0.19414508390956367
+    },
+    "x3_omega": {
+      "mean_control": 0.003983887299587188,
+      "mean_post": 0.00463123760286598
+    }
+  },
+  "control_pairwise_correlations": {
+    "x1_rho": {
+      "x1_rho": 1.0,
+      "x2_psi": -0.05559617980886174,
+      "x3_omega": -0.031185274440579964
+    },
+    "x2_psi": {
+      "x1_rho": -0.05559617980886174,
+      "x2_psi": 1.0,
+      "x3_omega": 0.10610669261567604
+    },
+    "x3_omega": {
+      "x1_rho": -0.031185274440579964,
+      "x2_psi": 0.10610669261567604,
+      "x3_omega": 1.0
+    }
+  },
+  "operators": {
+    "product": {
+      "mean_control": 0.09390318997312265,
+      "mean_post": 0.11609833400276723,
+      "post_control_ratio": 1.2363619812702569,
+      "ratio_defined": true
+    },
+    "sum": {
+      "mean_control": 1.4655101331932583,
+      "mean_post": 1.5395840701413304,
+      "post_control_ratio": 1.0505448138981266,
+      "ratio_defined": true
+    },
+    "maximum": {
+      "mean_control": 0.7968912957472056,
+      "mean_post": 0.8374773410122022,
+      "post_control_ratio": 1.0509304662776382,
+      "ratio_defined": true
+    }
+  },
+  "source_artifacts": {
+    "usgs_m2plus_rows": 1460,
+    "usgs_sha256": "cbbf49856d4f8131ec3d15563be1e15fb9f245548a31a2fb0b03b7f9820fd58a",
+    "n225_sha256": "59d0e3eda20da61262404f616de01f094d5782a7627459cae8fe51b95f1d2f70",
+    "jpyx_sha256": "0f8c39bb92db5ab91513d66e5f69237ceedc21650d4a042968b3cfcb69240f03",
+    "aligned_series_sha256": "36fd82024cbcd8dde4c4dabde2e7223f4374ec5a5d1fd1787298ce9a62a12c71"
+  },
+  "frozen_rules": {
+    "seismic_channel": "All M>=2.0 USGS events inside the frozen Japan-region bounds are aggregated by JST calendar date; no-event days equal zero.",
+    "equity_channel": "^N225 close daily pct return; 5-observation rolling SD annualized by sqrt(252).",
+    "fx_channel": "JPY=X close absolute daily pct change.",
+    "normalization": "Channel-specific control-period P99; no upper cap.",
+    "primary_score": "product = z1 * z2 * z3",
+    "benchmarks": [
+      "sum = z1 + z2 + z3",
+      "maximum = max(z1, z2, z3)"
+    ],
+    "primary_contrast": "mean(post) / mean(control)"
+  }
+}
