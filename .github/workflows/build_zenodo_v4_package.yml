@@ -6,11 +6,19 @@ on:
   push:
     branches:
       - main
-      - evaluation-v2-pre-results
     paths:
       - ".github/workflows/build_zenodo_v4_package.yml"
+      - "README.md"
       - "zenodo_v4/**"
       - "archive/zenodo_v3/golden/output/**"
+      - "archive/zenodo_v3/golden/ltcm_holdout/**"
+      - "archive/zenodo_v3/data/ltcm_holdout/**"
+      - "archive/zenodo_v3/code/run_historical_holdout.py"
+      - "archive/zenodo_v3/scripts/verify_ltcm_holdout.py"
+      - "archive/zenodo_v3/docs/channel_selection_protocol_v1.md"
+      - "archive/zenodo_v3/docs/ltcm_protocol_addendum_v1_1.md"
+      - "archive/zenodo_v3/docs/ltcm_protocol_addendum_v1_2.md"
+      - "archive/zenodo_v3/docs/CORRECTION_2026-10-05.md"
       - "requirements-lock.txt"
 
 jobs:
@@ -31,7 +39,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-lock.txt
 
-      - name: Syntax-check v4 analysis scripts
+      - name: Syntax-check current analysis scripts
         run: |
           python -m py_compile \
             zenodo_v4/holdout2/build_candidate_universe.py \
@@ -40,7 +48,9 @@ jobs:
             zenodo_v4/holdout2/run_holdout2_analysis.py \
             zenodo_v4/simulation/run_simulation_v2.py \
             zenodo_v4/simulation/make_figure_simulation_primary.py \
-            zenodo_v4/simulation/make_figure_simulation_combined.py
+            zenodo_v4/simulation/make_figure_simulation_combined.py \
+            archive/zenodo_v3/code/run_historical_holdout.py \
+            archive/zenodo_v3/scripts/verify_ltcm_holdout.py
 
       - name: Verify Holdout 2 pre-output freeze hashes
         run: |
@@ -54,7 +64,7 @@ jobs:
         run: |
           sha256sum -c zenodo_v4/simulation/simulation_v2_result_sha256.txt
 
-      - name: Validate frozen result structure
+      - name: Validate frozen result structure and canonical manuscript values
         run: |
           python - <<'PY'
           import json
@@ -64,21 +74,12 @@ jobs:
 
           root = Path("zenodo_v4")
 
-          # ----------------------------------------------------------
           # Holdout 2
-          # ----------------------------------------------------------
           holdout = pd.read_csv(
-              root
-              / "holdout2"
-              / "results"
-              / "holdout2_aligned_series.csv"
+              root / "holdout2" / "results" / "holdout2_aligned_series.csv"
           )
-
           with (
-              root
-              / "holdout2"
-              / "results"
-              / "holdout2_summary.json"
+              root / "holdout2" / "results" / "holdout2_summary.json"
           ).open(encoding="utf-8") as f:
               holdout_summary = json.load(f)
 
@@ -88,87 +89,79 @@ jobs:
               "post": 250,
           }
           assert int(holdout.isna().sum().sum()) == 0
-          assert (
-              holdout_summary["selected_event"]["event_id"]
-              == "usp000c8mb"
-          )
+          assert holdout_summary["selected_event"]["event_id"] == "usp000c8mb"
 
-          # ----------------------------------------------------------
           # Simulation v2
-          # ----------------------------------------------------------
           sim_dir = root / "simulation" / "results"
-
-          alt = pd.read_csv(
-              sim_dir / "simulation_v2_alt_replicates.csv"
-          )
-          null = pd.read_csv(
-              sim_dir / "simulation_v2_null_replicates.csv"
-          )
-          summary = pd.read_csv(
-              sim_dir / "simulation_v2_summary.csv"
-          )
+          alt = pd.read_csv(sim_dir / "simulation_v2_alt_replicates.csv")
+          null = pd.read_csv(sim_dir / "simulation_v2_null_replicates.csv")
+          summary = pd.read_csv(sim_dir / "simulation_v2_summary.csv")
 
           assert len(alt) == 216000
           assert len(null) == 24000
           assert len(summary) == 216
-
           assert int(alt.isna().sum().sum()) == 0
           assert int(null.isna().sum().sum()) == 0
           assert int(summary.isna().sum().sum()) == 0
-
           assert np.isfinite(alt["T"]).all()
           assert np.isfinite(null["T"]).all()
-          assert np.isfinite(
-              summary.select_dtypes(include="number").to_numpy()
-          ).all()
+          assert np.isfinite(summary.select_dtypes(include="number").to_numpy()).all()
 
           assert not alt.duplicated(
-              [
-                  "k",
-                  "rho",
-                  "delta",
-                  "replicate",
-                  "normalization",
-                  "operator",
-              ]
+              ["k", "rho", "delta", "replicate", "normalization", "operator"]
           ).any()
-
           assert not null.duplicated(
-              [
-                  "rho",
-                  "replicate",
-                  "normalization",
-                  "operator",
-              ]
+              ["rho", "replicate", "normalization", "operator"]
           ).any()
-
           assert not summary.duplicated(
-              [
-                  "k",
-                  "rho",
-                  "delta",
-                  "normalization",
-                  "operator",
-              ]
+              ["k", "rho", "delta", "normalization", "operator"]
           ).any()
 
-          print("Frozen result structure: OK")
+          # Canonical retrospective revised-primary result check.
+          formulations = pd.read_csv(
+              "archive/zenodo_v3/golden/output/table_nonoverlap_formulations.csv"
+          )
+          fuku = formulations[
+              (formulations["Case"] == "Fukushima")
+              & (formulations["Formulation"] == "Multiplicative")
+          ]
+          assert len(fuku) == 1
+          assert np.isclose(
+              float(fuku.iloc[0]["Post_control_to_control_mean_ratio"]),
+              2.3159924201,
+          )
+
+          # Frozen LTCM result check.
+          ltcm = pd.read_csv(
+              "archive/zenodo_v3/golden/ltcm_holdout/table_ltcm_primary.csv"
+          )
+          ratio_cols = [c for c in ltcm.columns if "ratio" in c.lower()]
+          assert ratio_cols, "LTCM primary table must contain a ratio column"
+          assert np.isclose(float(ltcm.iloc[0][ratio_cols[0]]), 1.1469269769)
+
+          print("Frozen result structure and canonical values: OK")
           PY
 
-      - name: Check required manuscript figures
+      - name: Check archive source assets
         run: |
+          # Retrospective/development figure assets retained for provenance.
           test -f archive/zenodo_v3/golden/output/figures/Figure1_Pi_timeseries.png
           test -f archive/zenodo_v3/golden/output/figures/Figure2_cross_domain_separation.png
           test -f archive/zenodo_v3/golden/output/figures/Figure3_mult_vs_add_vs_max.png
-          test -f archive/zenodo_v3/golden/output/figures/Figure4_permutation_tests.png
-          test -f archive/zenodo_v3/golden/output/figures/Figure5_failure_modes.png
-          test -f archive/zenodo_v3/golden/output/figures/Figure6_robustness.png
-          test -f archive/zenodo_v3/golden/output/figures/Figure7_pseudo_prospective.png
 
+          # Current simulation manuscript source asset.
           test -f zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.png
           test -f zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.pdf
 
-          echo "Required manuscript figures: OK"
+          # LTCM provenance/support assets.
+          test -f archive/zenodo_v3/golden/ltcm_holdout/manifest_ltcm.json
+          test -f archive/zenodo_v3/golden/ltcm_holdout/table_ltcm_primary.csv
+          test -f archive/zenodo_v3/golden/ltcm_holdout/table_ltcm_formulations.csv
+          test -f archive/zenodo_v3/golden/ltcm_holdout/table_ltcm_ablation.csv
+          test -f archive/zenodo_v3/golden/ltcm_holdout/table_ltcm_permutation.csv
+          test -f archive/zenodo_v3/scripts/verify_ltcm_holdout.py
+
+          echo "Archive source assets: OK"
 
       - name: Remove Python cache files
         run: |
@@ -177,38 +170,47 @@ jobs:
 
       - name: Assemble Zenodo v4 analysis package
         run: |
-          mkdir -p _artifact/zenodo_v4_analysis_package
-          mkdir -p _artifact/manuscript_figures/legacy_v3
-          mkdir -p _artifact/manuscript_figures/zenodo_v4
+          PKG=_artifact/zenodo_v4_analysis_package
+          FIG=_artifact/manuscript_figure_sources
 
-          cp README.md \
-            _artifact/zenodo_v4_analysis_package/
+          mkdir -p "$PKG"
+          mkdir -p "$FIG/legacy_v3"
+          mkdir -p "$FIG/zenodo_v4"
 
-          cp requirements-lock.txt \
-            _artifact/zenodo_v4_analysis_package/
+          cp README.md "$PKG/"
+          cp requirements-lock.txt "$PKG/"
+          cp -R zenodo_v4 "$PKG/"
 
-          cp -R zenodo_v4 \
-            _artifact/zenodo_v4_analysis_package/
+          mkdir -p "$PKG/legacy_v3_golden"
+          cp -R archive/zenodo_v3/golden/output "$PKG/legacy_v3_golden/"
+          cp -R archive/zenodo_v3/golden/ltcm_holdout "$PKG/legacy_v3_golden/"
 
-          mkdir -p \
-            _artifact/zenodo_v4_analysis_package/legacy_v3_golden
+          mkdir -p "$PKG/legacy_v3_ltcm_support/data"
+          mkdir -p "$PKG/legacy_v3_ltcm_support/code"
+          mkdir -p "$PKG/legacy_v3_ltcm_support/scripts"
+          mkdir -p "$PKG/legacy_v3_ltcm_support/docs"
 
-          cp -R archive/zenodo_v3/golden/output \
-            _artifact/zenodo_v4_analysis_package/legacy_v3_golden/
+          cp -R archive/zenodo_v3/data/ltcm_holdout \
+            "$PKG/legacy_v3_ltcm_support/data/"
+          cp archive/zenodo_v3/code/run_historical_holdout.py \
+            "$PKG/legacy_v3_ltcm_support/code/"
+          cp archive/zenodo_v3/scripts/verify_ltcm_holdout.py \
+            "$PKG/legacy_v3_ltcm_support/scripts/"
+          cp archive/zenodo_v3/docs/channel_selection_protocol_v1.md \
+            "$PKG/legacy_v3_ltcm_support/docs/"
+          cp archive/zenodo_v3/docs/ltcm_protocol_addendum_v1_1.md \
+            "$PKG/legacy_v3_ltcm_support/docs/"
+          cp archive/zenodo_v3/docs/ltcm_protocol_addendum_v1_2.md \
+            "$PKG/legacy_v3_ltcm_support/docs/"
+          cp archive/zenodo_v3/docs/CORRECTION_2026-10-05.md \
+            "$PKG/legacy_v3_ltcm_support/docs/"
 
-          cp archive/zenodo_v3/golden/output/figures/*.png \
-            _artifact/manuscript_figures/legacy_v3/
-
-          cp archive/zenodo_v3/golden/output/figures/*.pdf \
-            _artifact/manuscript_figures/legacy_v3/
-
-          cp \
-            zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.png \
-            _artifact/manuscript_figures/zenodo_v4/
-
-          cp \
-            zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.pdf \
-            _artifact/manuscript_figures/zenodo_v4/
+          cp archive/zenodo_v3/golden/output/figures/*.png "$FIG/legacy_v3/"
+          cp archive/zenodo_v3/golden/output/figures/*.pdf "$FIG/legacy_v3/"
+          cp zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.png \
+            "$FIG/zenodo_v4/"
+          cp zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.pdf \
+            "$FIG/zenodo_v4/"
 
           {
             echo "Zenodo v4 analysis package"
@@ -221,20 +223,23 @@ jobs:
             echo "${GITHUB_REF}"
             echo
             echo "Contents:"
-            echo "- Frozen Holdout 2 design, snapshots, results, and manifests"
-            echo "- Frozen Simulation v2 configuration, replicate results, summaries, and manifests"
-            echo "- Final combined Simulation v2 manuscript figure"
-            echo "- Archived Zenodo v3 golden outputs and figures"
+            echo "- Frozen Holdout 2 design, selection artifacts, snapshots, results, and manifests"
+            echo "- Frozen Simulation v2 configuration, replicate results, summaries, figures, and manifests"
+            echo "- Canonical Zenodo v3 retrospective development outputs"
+            echo "- Frozen LTCM holdout outputs plus supporting data, code, verifier, and protocol documents"
+            echo "- Dated documentation correction note; no frozen analytical output is modified"
+            echo
+            echo "Evidence-status note:"
+            echo "- Retrospective development cases remain retrospective"
+            echo "- LTCM remains a directly nominated frozen historical holdout"
+            echo "- Holdout 2 remains an output-blind historical selection within a development-informed template"
+            echo "- Simulation v2 remains controlled structural evidence"
             echo
             echo "Generated by GitHub Actions run:"
             echo "${GITHUB_RUN_ID}"
-          } > \
-            _artifact/zenodo_v4_analysis_package/PACKAGE_CONTENTS.txt
+          } > "$PKG/PACKAGE_CONTENTS.txt"
 
-          find _artifact/zenodo_v4_analysis_package \
-            -type f \
-            | sort \
-            > _artifact/zenodo_v4_analysis_package/FILE_LIST.txt
+          find "$PKG" -type f | sort > "$PKG/FILE_LIST.txt"
 
       - name: Upload complete Zenodo v4 analysis package
         uses: actions/upload-artifact@v4
@@ -244,10 +249,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload manuscript figures
+      - name: Upload manuscript figure sources
         uses: actions/upload-artifact@v4
         with:
-          name: manuscript-figures
-          path: _artifact/manuscript_figures/
+          name: manuscript-figure-sources
+          path: _artifact/manuscript_figure_sources/
           if-no-files-found: error
           retention-days: 30
