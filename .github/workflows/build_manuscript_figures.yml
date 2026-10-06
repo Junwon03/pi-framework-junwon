@@ -1,0 +1,125 @@
+name: Build Manuscript Figure Set
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/build_manuscript_figures.yml"
+      - "manuscript_figures/**"
+      - "archive/zenodo_v3/golden/output/table_nonoverlap_primary.csv"
+      - "archive/zenodo_v3/golden/ltcm_holdout/table_ltcm_formulations.csv"
+      - "zenodo_v4/holdout2/results/**"
+      - "zenodo_v4/simulation/results/simulation_v2_summary.csv"
+      - "requirements-lock.txt"
+
+jobs:
+  build-figures:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11.8"
+
+      - name: Install locked dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-lock.txt
+
+      - name: Syntax-check manuscript figure generators
+        run: |
+          python -m py_compile \
+            manuscript_figures/make_manuscript_figures.py \
+            manuscript_figures/make_figure5_manuscript.py
+
+      - name: Verify frozen inputs used by manuscript figures
+        run: |
+          sha256sum -c zenodo_v4/holdout2/holdout2_result_sha256.txt
+          sha256sum -c zenodo_v4/simulation/simulation_v2_result_sha256.txt
+
+          python - <<'PY'
+          import json
+          import numpy as np
+          import pandas as pd
+
+          dev = pd.read_csv(
+              "archive/zenodo_v3/golden/output/table_nonoverlap_primary.csv"
+          ).set_index("Case")
+          assert np.isclose(
+              float(dev.loc["Fukushima", "Post_control_to_control_mean_ratio"]),
+              2.3159924201,
+          )
+
+          ltcm = pd.read_csv(
+              "archive/zenodo_v3/golden/ltcm_holdout/table_ltcm_formulations.csv"
+          ).set_index("Definition")
+          assert np.isclose(
+              float(ltcm.loc["Multiplicative", "Post_control_to_control_mean_ratio"]),
+              1.1469269769,
+          )
+
+          with open(
+              "zenodo_v4/holdout2/results/holdout2_summary.json",
+              encoding="utf-8",
+          ) as f:
+              holdout = json.load(f)
+          assert holdout["selected_event"]["event_id"] == "usp000c8mb"
+          assert np.isclose(
+              float(holdout["operators"]["product"]["post_control_ratio"]),
+              1.2363619812702569,
+          )
+
+          sim = pd.read_csv(
+              "zenodo_v4/simulation/results/simulation_v2_summary.csv"
+          )
+          assert len(sim) == 216
+          assert int(sim.isna().sum().sum()) == 0
+          print("Frozen manuscript figure inputs: OK")
+          PY
+
+      - name: Build final manuscript figure set
+        run: |
+          bash manuscript_figures/build_final_figure_set.sh
+
+      - name: Verify final manuscript figure set
+        run: |
+          FINAL=manuscript_figures/final_figure_set
+
+          for stem in \
+            Figure1_framework_evidence \
+            Figure2_development_cases \
+            Figure3_ltcm_holdout \
+            Figure4_holdout2 \
+            Figure5_simulation
+          do
+            test -s "$FINAL/${stem}.png"
+            test -s "$FINAL/${stem}.pdf"
+          done
+
+          test -s "$FINAL/README.txt"
+          test -s "$FINAL/SHA256SUMS.txt"
+
+          (
+            cd "$FINAL"
+            sha256sum -c SHA256SUMS.txt
+          )
+
+          count=$(find "$FINAL" -maxdepth 1 -type f \( -name 'Figure*.png' -o -name 'Figure*.pdf' \) | wc -l)
+          test "$count" -eq 10
+
+          echo "Final manuscript figure set: OK"
+
+      - name: Upload final manuscript figure set
+        uses: actions/upload-artifact@v4
+        with:
+          name: manuscript-figure-set
+          path: manuscript_figures/final_figure_set/
+          if-no-files-found: error
+          retention-days: 30
