@@ -12,7 +12,7 @@ on:
       - "zenodo_v4/**"
       - "archive/zenodo_v3/golden/output/**"
       - "archive/zenodo_v3/golden/ltcm_holdout/**"
-      - "archive/zenodo_v3/data/ltcm_holdout/**"
+      - "data/ltcm_holdout/**"
       - "archive/zenodo_v3/code/run_historical_holdout.py"
       - "archive/zenodo_v3/scripts/verify_ltcm_holdout.py"
       - "archive/zenodo_v3/docs/channel_selection_protocol_v1.md"
@@ -154,6 +154,11 @@ jobs:
           test -f zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.pdf
 
           # LTCM provenance/support assets.
+          test -d data/ltcm_holdout
+          test -f data/ltcm_holdout/ltcm_historical_holdout_processed.csv
+          test -f data/ltcm_holdout/raw_DFF.csv
+          test -f data/ltcm_holdout/raw_TEDRATE.csv
+          test -f data/ltcm_holdout/raw_TOTBKCR.csv
           test -f archive/zenodo_v3/golden/ltcm_holdout/manifest_ltcm.json
           test -f archive/zenodo_v3/golden/ltcm_holdout/table_ltcm_primary.csv
           test -f archive/zenodo_v3/golden/ltcm_holdout/table_ltcm_formulations.csv
@@ -190,7 +195,7 @@ jobs:
           mkdir -p "$PKG/legacy_v3_ltcm_support/scripts"
           mkdir -p "$PKG/legacy_v3_ltcm_support/docs"
 
-          cp -R archive/zenodo_v3/data/ltcm_holdout \
+          cp -R data/ltcm_holdout \
             "$PKG/legacy_v3_ltcm_support/data/"
           cp archive/zenodo_v3/code/run_historical_holdout.py \
             "$PKG/legacy_v3_ltcm_support/code/"
