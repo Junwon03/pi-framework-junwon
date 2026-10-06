@@ -1,4 +1,4 @@
-name: Build Zenodo v4 Analysis Package
+name: Build Analysis Reproducibility Package
 
 on:
   workflow_dispatch:
@@ -8,7 +8,6 @@ on:
       - main
     paths:
       - ".github/workflows/build_zenodo_v4_package.yml"
-      - "README.md"
       - "zenodo_v4/**"
       - "archive/zenodo_v3/golden/output/**"
       - "archive/zenodo_v3/golden/ltcm_holdout/**"
@@ -74,7 +73,6 @@ jobs:
 
           root = Path("zenodo_v4")
 
-          # Holdout 2
           holdout = pd.read_csv(
               root / "holdout2" / "results" / "holdout2_aligned_series.csv"
           )
@@ -91,7 +89,6 @@ jobs:
           assert int(holdout.isna().sum().sum()) == 0
           assert holdout_summary["selected_event"]["event_id"] == "usp000c8mb"
 
-          # Simulation v2
           sim_dir = root / "simulation" / "results"
           alt = pd.read_csv(sim_dir / "simulation_v2_alt_replicates.csv")
           null = pd.read_csv(sim_dir / "simulation_v2_null_replicates.csv")
@@ -117,7 +114,6 @@ jobs:
               ["k", "rho", "delta", "normalization", "operator"]
           ).any()
 
-          # Canonical retrospective revised-primary result check.
           formulations = pd.read_csv(
               "archive/zenodo_v3/golden/output/table_nonoverlap_formulations.csv"
           )
@@ -131,7 +127,6 @@ jobs:
               2.3159924201,
           )
 
-          # Frozen LTCM result check.
           ltcm = pd.read_csv(
               "archive/zenodo_v3/golden/ltcm_holdout/table_ltcm_primary.csv"
           )
@@ -142,115 +137,201 @@ jobs:
           print("Frozen result structure and canonical values: OK")
           PY
 
-      - name: Check archive source assets
+      - name: Check source assets
         run: |
-          # Retrospective/development figure assets retained for provenance.
           test -f archive/zenodo_v3/golden/output/figures/Figure1_Pi_timeseries.png
           test -f archive/zenodo_v3/golden/output/figures/Figure2_cross_domain_separation.png
           test -f archive/zenodo_v3/golden/output/figures/Figure3_mult_vs_add_vs_max.png
 
-          # Current simulation manuscript source asset.
           test -f zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.png
           test -f zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.pdf
 
-          # LTCM provenance/support assets.
-          test -d data/ltcm_holdout
-          test -f data/ltcm_holdout/ltcm_historical_holdout_processed.csv
-          test -f data/ltcm_holdout/raw_DFF.csv
-          test -f data/ltcm_holdout/raw_TEDRATE.csv
-          test -f data/ltcm_holdout/raw_TOTBKCR.csv
           test -f archive/zenodo_v3/golden/ltcm_holdout/manifest_ltcm.json
           test -f archive/zenodo_v3/golden/ltcm_holdout/table_ltcm_primary.csv
           test -f archive/zenodo_v3/golden/ltcm_holdout/table_ltcm_formulations.csv
           test -f archive/zenodo_v3/golden/ltcm_holdout/table_ltcm_ablation.csv
           test -f archive/zenodo_v3/golden/ltcm_holdout/table_ltcm_permutation.csv
           test -f archive/zenodo_v3/scripts/verify_ltcm_holdout.py
+          test -f data/ltcm_holdout/ltcm_historical_holdout_processed.csv
+          test -f data/ltcm_holdout/raw_DFF.csv
+          test -f data/ltcm_holdout/raw_TEDRATE.csv
+          test -f data/ltcm_holdout/raw_TOTBKCR.csv
 
-          echo "Archive source assets: OK"
+          echo "Source assets: OK"
 
       - name: Remove Python cache files
         run: |
           find zenodo_v4 -type d -name "__pycache__" -prune -exec rm -rf {} +
           find zenodo_v4 -type f -name "*.pyc" -delete
 
-      - name: Assemble Zenodo v4 analysis package
+      - name: Assemble blinded analysis package
         run: |
-          PKG=_artifact/zenodo_v4_analysis_package
+          PKG=_artifact/analysis_reproducibility_package
           FIG=_artifact/manuscript_figure_sources
 
-          mkdir -p "$PKG"
-          mkdir -p "$FIG/legacy_v3"
-          mkdir -p "$FIG/zenodo_v4"
+          rm -rf "$PKG" "$FIG"
+          mkdir -p "$PKG" "$FIG/legacy_v3" "$FIG/current"
 
-          cp README.md "$PKG/"
           cp requirements-lock.txt "$PKG/"
           cp -R zenodo_v4 "$PKG/"
 
-          mkdir -p "$PKG/legacy_v3_golden"
-          cp -R archive/zenodo_v3/golden/output "$PKG/legacy_v3_golden/"
-          cp -R archive/zenodo_v3/golden/ltcm_holdout "$PKG/legacy_v3_golden/"
+          mkdir -p "$PKG/legacy/development"
+          cp -R archive/zenodo_v3/golden/output \
+            "$PKG/legacy/development/"
 
-          mkdir -p "$PKG/legacy_v3_ltcm_support/data"
-          mkdir -p "$PKG/legacy_v3_ltcm_support/code"
-          mkdir -p "$PKG/legacy_v3_ltcm_support/scripts"
-          mkdir -p "$PKG/legacy_v3_ltcm_support/docs"
+          mkdir -p "$PKG/legacy/ltcm/data"
+          mkdir -p "$PKG/legacy/ltcm/golden"
+          mkdir -p "$PKG/legacy/ltcm/output"
+          mkdir -p "$PKG/legacy/ltcm/code"
+          mkdir -p "$PKG/legacy/ltcm/scripts"
+          mkdir -p "$PKG/legacy/ltcm/protocols"
 
           cp -R data/ltcm_holdout \
-            "$PKG/legacy_v3_ltcm_support/data/"
+            "$PKG/legacy/ltcm/data/"
+          cp -R archive/zenodo_v3/golden/ltcm_holdout \
+            "$PKG/legacy/ltcm/golden/"
+          cp -R archive/zenodo_v3/golden/ltcm_holdout \
+            "$PKG/legacy/ltcm/output/"
           cp archive/zenodo_v3/code/run_historical_holdout.py \
-            "$PKG/legacy_v3_ltcm_support/code/"
+            "$PKG/legacy/ltcm/code/"
           cp archive/zenodo_v3/scripts/verify_ltcm_holdout.py \
-            "$PKG/legacy_v3_ltcm_support/scripts/"
+            "$PKG/legacy/ltcm/scripts/"
           cp archive/zenodo_v3/docs/channel_selection_protocol_v1.md \
-            "$PKG/legacy_v3_ltcm_support/docs/"
+            "$PKG/legacy/ltcm/protocols/"
           cp archive/zenodo_v3/docs/ltcm_protocol_addendum_v1_1.md \
-            "$PKG/legacy_v3_ltcm_support/docs/"
+            "$PKG/legacy/ltcm/protocols/"
           cp archive/zenodo_v3/docs/ltcm_protocol_addendum_v1_2.md \
-            "$PKG/legacy_v3_ltcm_support/docs/"
+            "$PKG/legacy/ltcm/protocols/"
           cp archive/zenodo_v3/docs/CORRECTION_2026-10-05.md \
-            "$PKG/legacy_v3_ltcm_support/docs/"
+            "$PKG/legacy/ltcm/protocols/"
 
           cp archive/zenodo_v3/golden/output/figures/*.png "$FIG/legacy_v3/"
           cp archive/zenodo_v3/golden/output/figures/*.pdf "$FIG/legacy_v3/"
           cp zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.png \
-            "$FIG/zenodo_v4/"
+            "$FIG/current/"
           cp zenodo_v4/simulation/figures/Figure_simulation_combined_delta1.pdf \
-            "$FIG/zenodo_v4/"
+            "$FIG/current/"
 
-          {
-            echo "Zenodo v4 analysis package"
-            echo "=========================="
-            echo
-            echo "Git commit:"
-            git rev-parse HEAD
-            echo
-            echo "Git branch/ref:"
-            echo "${GITHUB_REF}"
-            echo
-            echo "Contents:"
-            echo "- Frozen Holdout 2 design, selection artifacts, snapshots, results, and manifests"
-            echo "- Frozen Simulation v2 configuration, replicate results, summaries, figures, and manifests"
-            echo "- Canonical Zenodo v3 retrospective development outputs"
-            echo "- Frozen LTCM holdout outputs plus supporting data, code, verifier, and protocol documents"
-            echo "- Dated documentation correction note; no frozen analytical output is modified"
-            echo
-            echo "Evidence-status note:"
-            echo "- Retrospective development cases remain retrospective"
-            echo "- LTCM remains a directly nominated frozen historical holdout"
-            echo "- Holdout 2 remains an output-blind historical selection within a development-informed template"
-            echo "- Simulation v2 remains controlled structural evidence"
-            echo
-            echo "Generated by GitHub Actions run:"
-            echo "${GITHUB_RUN_ID}"
-          } > "$PKG/PACKAGE_CONTENTS.txt"
+          cat > "$PKG/README.md" <<'EOF'
+          # Analysis Reproducibility Package
 
-          find "$PKG" -type f | sort > "$PKG/FILE_LIST.txt"
+          This is a blinded review copy of the analysis materials supporting the manuscript.
 
-      - name: Upload complete Zenodo v4 analysis package
+          ## Evidence map
+
+          - `legacy/development/output/`: canonical retrospective development outputs.
+          - `legacy/ltcm/`: frozen LTCM historical-transfer data, outputs, protocols, code, and verifier.
+          - `zenodo_v4/holdout2/`: output-blind historical Holdout 2 selection and frozen results.
+          - `zenodo_v4/simulation/`: frozen controlled Simulation v2 inputs and outputs.
+
+          ## Verification
+
+          From the package root:
+
+          ```bash
+          sha256sum -c zenodo_v4/holdout2/holdout2_preoutput_sha256.txt
+          sha256sum -c zenodo_v4/holdout2/holdout2_result_sha256.txt
+          sha256sum -c zenodo_v4/simulation/simulation_v2_result_sha256.txt
+          python legacy/ltcm/scripts/verify_ltcm_holdout.py
+          sha256sum -c SHA256SUMS.txt
+          ```
+
+          The Holdout 2 pre-output manifest in this review copy is regenerated after a provenance-only repository identifier is blinded. Scientific query parameters, candidate records, selected-event records, analysis code, and reported results are unchanged.
+
+          `FILE_LIST.txt` contains package-relative paths. `SHA256SUMS.txt` covers every package file except itself.
+          EOF
+
+          cat > "$PKG/BLINDING_NOTE.md" <<'EOF'
+          # Blinding note
+
+          One repository-identifying provenance string in `zenodo_v4/config/holdout2_candidate_query.json` is replaced with `[blinded repository]` in this review copy. No analytical parameter, data value, random seed, candidate universe, selected event, code logic, frozen result, or manuscript value is changed by this redaction.
+
+          Because that metadata file changes byte-for-byte, the review-copy Holdout 2 pre-output SHA-256 manifest is regenerated after redaction so that verification remains internally consistent. The original frozen repository record is preserved outside this blinded review artifact.
+          EOF
+
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          pkg = Path("_artifact/analysis_reproducibility_package")
+          query = pkg / "zenodo_v4/config/holdout2_candidate_query.json"
+          text = query.read_text(encoding="utf-8")
+          text = text.replace("Junwon03/pi-framework-junwon", "[blinded repository]")
+          query.write_text(text, encoding="utf-8")
+
+          manifest = pkg / "zenodo_v4/holdout2/holdout2_preoutput_sha256.txt"
+          original = manifest.with_name("holdout2_preoutput_sha256_frozen_original.txt")
+          original.write_text(manifest.read_text(encoding="utf-8"), encoding="utf-8")
+
+          paths = []
+          for line in original.read_text(encoding="utf-8").splitlines():
+              if not line.strip():
+                  continue
+              _, rel = line.split(maxsplit=1)
+              paths.append(rel.strip())
+
+          def sha256(path: Path) -> str:
+              h = hashlib.sha256()
+              with path.open("rb") as f:
+                  for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                      h.update(chunk)
+              return h.hexdigest()
+
+          manifest.write_text(
+              "".join(f"{sha256(pkg / rel)}  {rel}\n" for rel in paths),
+              encoding="utf-8",
+          )
+          PY
+
+          if grep -RIlE \
+            'Junwon03|Junwon Lee|herrang0311|dankook|10\.5281/zenodo\.22765907' \
+            "$PKG"; then
+            echo "ERROR: identifying text remains in blinded package"
+            exit 1
+          fi
+
+          (
+            cd "$PKG"
+            find . -type f \
+              ! -name 'FILE_LIST.txt' \
+              ! -name 'SHA256SUMS.txt' \
+              -print | sed 's#^\./##' | sort > FILE_LIST.txt
+
+            find . -type f \
+              ! -name 'SHA256SUMS.txt' \
+              -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+          )
+
+      - name: Verify assembled package
+        run: |
+          PKG=_artifact/analysis_reproducibility_package
+
+          (
+            cd "$PKG"
+            sha256sum -c zenodo_v4/holdout2/holdout2_preoutput_sha256.txt
+            sha256sum -c zenodo_v4/holdout2/holdout2_result_sha256.txt
+            sha256sum -c zenodo_v4/simulation/simulation_v2_result_sha256.txt
+            python legacy/ltcm/scripts/verify_ltcm_holdout.py
+            sha256sum -c SHA256SUMS.txt
+          )
+
+          python - <<'PY'
+          from pathlib import Path
+          root = Path("_artifact/analysis_reproducibility_package")
+          listed = (root / "FILE_LIST.txt").read_text(encoding="utf-8").splitlines()
+          assert listed, "FILE_LIST.txt is empty"
+          assert all(not p.startswith("_artifact/") for p in listed)
+          assert "README.md" in listed
+          assert "BLINDING_NOTE.md" in listed
+          assert "legacy/ltcm/scripts/verify_ltcm_holdout.py" in listed
+          print("Package-relative file list and review metadata: OK")
+          PY
+
+      - name: Upload analysis reproducibility package
         uses: actions/upload-artifact@v4
         with:
-          name: zenodo-v4-analysis-package
-          path: _artifact/zenodo_v4_analysis_package/
+          name: analysis-reproducibility-package
+          path: _artifact/analysis_reproducibility_package/
           if-no-files-found: error
           retention-days: 30
 
